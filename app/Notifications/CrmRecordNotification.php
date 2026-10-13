@@ -29,27 +29,34 @@ class CrmRecordNotification extends Notification implements ShouldQueue
     }
 
     public function toDatabase(object $notifiable): array
-    {
-        return [
-            'title' => $this->title,
-            'message' => $this->message,
-            'module' => $this->module,
-            'record_id' => $this->recordId,
-            'action_url' => $this->actionUrl ?? route("{$this->module}.show", $this->recordId),
-            'type' => $this->type,
-            'created_at' => now()->toIso8601String(),
-        ];
-    }
+{
+    return [
+        'title' => $this->title,
+        'message' => $this->message,
+        'module' => $this->module,
+        'record_id' => $this->recordId,
+        'action_url' => $this->actionUrl ?? $this->recordUrl(),
+        'type' => $this->type,
+        'created_at' => now()->toIso8601String(),
+    ];
+}
 
-    public function toBroadcast(object $notifiable): BroadcastMessage
-    {
-        return new BroadcastMessage([
-            'title' => $this->title,
-            'message' => $this->message,
-            'module' => $this->module,
-            'record_id' => $this->recordId,
-            'action_url' => $this->actionUrl ?? route("{$this->module}.show", $this->recordId),
-            'type' => $this->type,
-        ]);
-    }
+public function toBroadcast(object $notifiable): BroadcastMessage
+{
+    return new BroadcastMessage([
+        'title' => $this->title,
+        'message' => $this->message,
+        'module' => $this->module,
+        'record_id' => $this->recordId,
+        'action_url' => $this->actionUrl ?? $this->recordUrl(),
+        'type' => $this->type,
+    ]);
+}
+
+private function recordUrl(): string
+{
+    $routePrefix = ['follow_ups' => 'followups'][$this->module] ?? $this->module;
+
+    return route("{$routePrefix}.show", $this->recordId);
+}
 }
