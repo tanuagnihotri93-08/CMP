@@ -3,8 +3,6 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use App\Models\Customer;
-use App\Models\FollowUp;
 
 class Lead extends Model
 {

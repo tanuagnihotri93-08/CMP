@@ -2,11 +2,12 @@
 
 namespace Tests\Feature;
 
-use App\Models\AuditLog;
 use App\Models\Activity;
+use App\Models\AuditLog;
 use App\Models\Customer;
 use App\Models\FollowUp;
 use App\Models\Lead;
+use App\Models\Role;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use LogicException;
@@ -68,7 +69,7 @@ class AuditLogTest extends TestCase
         $this->assertDatabaseHas('audit_logs', [
             'action' => 'created',
             'module' => 'customers',
-            'record_type' => \App\Models\Customer::class,
+            'record_type' => Customer::class,
         ]);
         $this->assertDatabaseHas('audit_logs', [
             'action' => 'converted',
@@ -238,7 +239,7 @@ class AuditLogTest extends TestCase
     {
         $user = User::factory()->create();
         $user->forceFill([
-            'role_id' => \App\Models\Role::where('name', 'super_admin')->value('id'),
+            'role_id' => Role::where('name', 'super_admin')->value('id'),
             'is_admin' => true,
         ])->save();
 

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Lead;
 use App\Models\User;
+use App\Services\ActivityTimeline;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -67,7 +68,7 @@ class LeadController extends Controller
         try {
             Lead::create($validated);
         } catch (QueryException $exception) {
-            if (!$this->isEmailUniqueViolation($exception, 'leads')) {
+            if (! $this->isEmailUniqueViolation($exception, 'leads')) {
                 throw $exception;
             }
 
@@ -85,7 +86,7 @@ class LeadController extends Controller
     {
         $lead = Lead::with(['customer', 'activities.customer'])->findOrFail($id);
         abort_unless(request()->user()->canAccessRecord($lead), 404);
-        if ($lead->customer && !request()->user()->canAccessRecord($lead->customer)) {
+        if ($lead->customer && ! request()->user()->canAccessRecord($lead->customer)) {
             $lead->setRelation('customer', null);
         }
         $lead->setRelation(
@@ -93,7 +94,7 @@ class LeadController extends Controller
             $lead->activities->filter(fn ($activity) => request()->user()->canAccessRecord($activity))
         );
 
-        $timeline = app(\App\Services\ActivityTimeline::class)
+        $timeline = app(ActivityTimeline::class)
             ->forLead($lead, request()->user());
 
         return view('leads.show', compact('lead', 'timeline'));
@@ -117,7 +118,7 @@ class LeadController extends Controller
         try {
             $lead->update($this->validateLead($request, $lead));
         } catch (QueryException $exception) {
-            if (!$this->isEmailUniqueViolation($exception, 'leads')) {
+            if (! $this->isEmailUniqueViolation($exception, 'leads')) {
                 throw $exception;
             }
 

@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Task;
 use App\Models\Project;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -16,12 +16,11 @@ class TaskController extends Controller
 
         $query = Task::with([
             'project',
-            'assignedUser'
+            'assignedUser',
         ]);
 
-
         if (
-            !in_array(
+            ! in_array(
                 $user->role?->name,
                 ['super_admin', 'manager'],
                 true
@@ -35,18 +34,15 @@ class TaskController extends Controller
 
         }
 
-
         $tasks = $query
             ->latest()
             ->get();
-
 
         return view(
             'tasks.index',
             compact('tasks')
         );
     }
-
 
     public function create()
     {
@@ -55,15 +51,12 @@ class TaskController extends Controller
             403
         );
 
-
         $projects = Project::latest()->get();
-
 
         $users = User::where(
             'is_active',
             1
         )->get();
-
 
         return view(
             'tasks.create',
@@ -74,14 +67,12 @@ class TaskController extends Controller
         );
     }
 
-
     public function store(Request $request)
     {
         abort_unless(
             Auth::user()->hasPermission('tasks.create'),
             403
         );
-
 
         $validated = $request->validate([
 
@@ -101,12 +92,9 @@ class TaskController extends Controller
 
         ]);
 
-
         $validated['created_by'] = Auth::id();
 
-
         Task::create($validated);
-
 
         return redirect()
             ->route('tasks.index')
@@ -116,18 +104,15 @@ class TaskController extends Controller
             );
     }
 
-
     public function show(Task $task)
     {
         $this->checkTaskAccess($task);
 
-
         $task->load([
             'project',
             'assignedUser',
-            'creator'
+            'creator',
         ]);
-
 
         return view(
             'tasks.show',
@@ -135,20 +120,16 @@ class TaskController extends Controller
         );
     }
 
-
     public function edit(Task $task)
     {
         $this->checkManagePermission('update');
 
-
         $projects = Project::latest()->get();
-
 
         $users = User::where(
             'is_active',
             1
         )->get();
-
 
         return view(
             'tasks.edit',
@@ -160,14 +141,12 @@ class TaskController extends Controller
         );
     }
 
-
     public function update(
         Request $request,
         Task $task
     ) {
 
         $this->checkManagePermission('update');
-
 
         $validated = $request->validate([
 
@@ -187,9 +166,7 @@ class TaskController extends Controller
 
         ]);
 
-
         $task->update($validated);
-
 
         return redirect()
             ->route('tasks.index')
@@ -199,14 +176,11 @@ class TaskController extends Controller
             );
     }
 
-
     public function destroy(Task $task)
     {
         $this->checkManagePermission('delete');
 
-
         $task->delete();
-
 
         return redirect()
             ->route('tasks.index')
@@ -216,11 +190,9 @@ class TaskController extends Controller
             );
     }
 
-
     private function checkTaskAccess(Task $task)
     {
         $user = Auth::user();
-
 
         if (
             in_array(
@@ -232,24 +204,20 @@ class TaskController extends Controller
             return;
         }
 
-
         abort_unless(
             $task->assigned_to == $user->id,
             404
         );
     }
 
-
     private function checkManagePermission(string $action)
     {
         $user = Auth::user();
-
 
         abort_unless(
             $user->hasPermission("tasks.$action"),
             403
         );
-
 
         abort_unless(
             in_array(

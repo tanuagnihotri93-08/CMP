@@ -43,7 +43,7 @@ class AuditLog extends Model
         ?int $userId = null
     ): self {
         $actor = Auth::user();
-        $log = new self();
+        $log = new self;
         $log->forceFill([
             'user_id' => $userId ?? $actor?->getAuthIdentifier(),
             'user_name' => $userName ?? $actor?->name ?? 'Unauthenticated',

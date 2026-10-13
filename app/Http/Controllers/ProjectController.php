@@ -24,7 +24,7 @@ class ProjectController extends Controller
             $query->withCount([
                 'tasks' => function ($q) use ($user) {
                     $q->where('assigned_to', $user->id);
-                }
+                },
             ]);
         }
 
@@ -58,7 +58,7 @@ class ProjectController extends Controller
             'client_name' => ['nullable', 'string', 'max:255'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'status' => ['required', 'in:Planning,Active,Completed,Cancelled']
+            'status' => ['required', 'in:Planning,Active,Completed,Cancelled'],
         ]);
 
         $validated['created_by'] = Auth::id();
@@ -76,7 +76,7 @@ class ProjectController extends Controller
 
         $project->load([
             'creator',
-            'tasks.assignedUser'
+            'tasks.assignedUser',
         ]);
 
         return view('projects.show', compact('project'));
@@ -99,7 +99,7 @@ class ProjectController extends Controller
             'client_name' => ['nullable', 'string', 'max:255'],
             'start_date' => ['nullable', 'date'],
             'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'status' => ['required', 'in:Planning,Active,Completed,Cancelled']
+            'status' => ['required', 'in:Planning,Active,Completed,Cancelled'],
         ]);
 
         $project->update($validated);
@@ -140,22 +140,22 @@ class ProjectController extends Controller
         );
     }
 
-   private function checkManagePermission(string $action)
-{
-    $user = Auth::user();
+    private function checkManagePermission(string $action)
+    {
+        $user = Auth::user();
 
-    abort_unless(
-        $user->hasPermission("projects.$action"),
-        403
-    );
+        abort_unless(
+            $user->hasPermission("projects.$action"),
+            403
+        );
 
-    abort_unless(
-        in_array(
-            $user->role?->name,
-            ['super_admin', 'manager'],
-            true
-        ),
-        403
-    );
-}
+        abort_unless(
+            in_array(
+                $user->role?->name,
+                ['super_admin', 'manager'],
+                true
+            ),
+            403
+        );
+    }
 }

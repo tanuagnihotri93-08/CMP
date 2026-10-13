@@ -15,8 +15,7 @@ class ReportExport implements FromQuery, WithCustomChunkSize, WithHeadings, With
         private readonly string $module,
         private readonly array $headings,
         private readonly Builder $query
-    ) {
-    }
+    ) {}
 
     public function query(): Builder
     {

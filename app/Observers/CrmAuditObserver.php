@@ -103,7 +103,7 @@ class CrmAuditObserver
 
     public function deleting(Model $model): void
     {
-        if (!$model instanceof Lead) {
+        if (! $model instanceof Lead) {
             return;
         }
 
@@ -154,16 +154,16 @@ class CrmAuditObserver
     private function notifyAssignee(Model $model, string $title, string $message): void
     {
         $assigneeId = $model->getAttribute('assigned_to_user_id');
-        if (!$assigneeId) {
+        if (! $assigneeId) {
             return;
         }
 
         $assignee = User::query()->whereKey($assigneeId)->where('is_active', true)->first();
-        if (!$assignee || $assignee->is(auth()->user())) {
+        if (! $assignee || $assignee->is(auth()->user())) {
             return;
         }
 
-        [$module, ,] = $this->identity($model);
+        [$module] = $this->identity($model);
         $assignee->notify(new CrmRecordNotification(
             $title,
             $message,

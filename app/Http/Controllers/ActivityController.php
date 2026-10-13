@@ -49,7 +49,7 @@ class ActivityController extends Controller
         $activities->each(function (Activity $activity): void {
             foreach (['lead', 'customer'] as $relation) {
                 $related = $activity->{$relation};
-                if ($related && !request()->user()->canAccessRecord($related)) {
+                if ($related && ! request()->user()->canAccessRecord($related)) {
                     $activity->setRelation($relation, null);
                 }
             }
@@ -67,7 +67,6 @@ class ActivityController extends Controller
             'completedCount' => $activityCounts->get('completed', 0),
         ]);
     }
-
 
     public function create()
     {
@@ -95,7 +94,6 @@ class ActivityController extends Controller
             ? request()->user()->constrainToAssignedRecords(Customer::query())->findOrFail(request('customer_id'))
             : null;
 
-
         return view('activities.create', compact(
             'activity',
             'leads',
@@ -106,7 +104,6 @@ class ActivityController extends Controller
         ));
     }
 
-
     public function store(Request $request)
     {
         $validated = $this->validateActivity($request);
@@ -115,12 +112,10 @@ class ActivityController extends Controller
         $validated['assigned_to_user_id'] ??= $request->user()->id;
         Activity::create($validated);
 
-
         return redirect()
             ->route('activities.index')
             ->with('success', 'Activity created successfully.');
     }
-
 
     public function show(string $id)
     {
@@ -129,14 +124,13 @@ class ActivityController extends Controller
         abort_unless(request()->user()->canAccessRecord($activity), 404);
         foreach (['lead', 'customer'] as $relation) {
             $related = $activity->{$relation};
-            if ($related && !request()->user()->canAccessRecord($related)) {
+            if ($related && ! request()->user()->canAccessRecord($related)) {
                 $activity->setRelation($relation, null);
             }
         }
 
         return view('activities.show', compact('activity'));
     }
-
 
     public function edit(string $id)
     {
@@ -157,10 +151,8 @@ class ActivityController extends Controller
             ->lazy(500);
         $assignableUsers = $this->assignableUsers();
 
-
         $selectedLead = null;
         $selectedCustomer = null;
-
 
         return view('activities.edit', compact(
             'activity',
@@ -172,7 +164,6 @@ class ActivityController extends Controller
         ));
     }
 
-
     public function update(Request $request, string $id)
     {
         $activity = Activity::findOrFail($id);
@@ -182,12 +173,10 @@ class ActivityController extends Controller
         $this->ensureAssigneeCanAccess($request, $validated, $activity->assigned_to_user_id);
         $activity->update($validated);
 
-
         return redirect()
             ->route('activities.index')
             ->with('success', 'Activity updated successfully.');
     }
-
 
     public function destroy(string $id)
     {
@@ -199,8 +188,6 @@ class ActivityController extends Controller
             ->route('activities.index')
             ->with('success', 'Activity deleted successfully.');
     }
-
-
 
     private function validateActivity(Request $request): array
     {
@@ -224,7 +211,7 @@ class ActivityController extends Controller
                     'Meeting',
                     'Email',
                     'Note',
-                    'Task'
+                    'Task',
                 ]),
             ],
             'subject' => [
@@ -246,7 +233,7 @@ class ActivityController extends Controller
                 'required',
                 Rule::in([
                     'pending',
-                    'completed'
+                    'completed',
                 ]),
             ],
             'assigned_to_user_id' => $request->user()->hasPermission('records.assign')
@@ -257,14 +244,14 @@ class ActivityController extends Controller
 
     private function authorizeRelatedRecords(Request $request, array $validated): void
     {
-        if (!empty($validated['lead_id'])) {
+        if (! empty($validated['lead_id'])) {
             abort_unless(
                 $request->user()->canAccessRecord(Lead::findOrFail($validated['lead_id'])),
                 404
             );
         }
 
-        if (!empty($validated['customer_id'])) {
+        if (! empty($validated['customer_id'])) {
             abort_unless(
                 $request->user()->canAccessRecord(Customer::findOrFail($validated['customer_id'])),
                 404
@@ -288,7 +275,7 @@ class ActivityController extends Controller
         array $validated,
         ?int $currentAssigneeId = null
     ): void {
-        if (!$request->user()->hasPermission('records.assign')) {
+        if (! $request->user()->hasPermission('records.assign')) {
             return;
         }
 
@@ -297,7 +284,7 @@ class ActivityController extends Controller
         );
 
         foreach (['lead_id' => Lead::class, 'customer_id' => Customer::class] as $field => $model) {
-            if (!empty($validated[$field])) {
+            if (! empty($validated[$field])) {
                 abort_unless(
                     $assignee->canAccessRecord($model::findOrFail($validated[$field])),
                     422,

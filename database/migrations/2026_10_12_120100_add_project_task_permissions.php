@@ -19,27 +19,25 @@ return new class extends Migration
 
     ];
 
-
     public function up(): void
     {
         foreach ($this->definitions as $name => $description) {
 
             DB::table('permissions')->updateOrInsert(
 
-    [
-        'name' => $name
-    ],
+                [
+                    'name' => $name,
+                ],
 
-    [
-        'description' => $description,
-        'created_at' => now(),
-        'updated_at' => now(),
-    ]
+                [
+                    'description' => $description,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]
 
-);
+            );
         }
     }
-
 
     public function down(): void
     {

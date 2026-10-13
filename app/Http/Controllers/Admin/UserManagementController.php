@@ -8,8 +8,8 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
 use Illuminate\Validation\Rule;
+use Illuminate\View\View;
 
 class UserManagementController extends Controller
 {
@@ -33,7 +33,7 @@ class UserManagementController extends Controller
         $newRole = Role::findOrFail($validated['role_id']);
         $willBeActive = (bool) $validated['is_active'];
 
-        if ($user->role?->name === 'super_admin' && ($newRole->name !== 'super_admin' || !$willBeActive)) {
+        if ($user->role?->name === 'super_admin' && ($newRole->name !== 'super_admin' || ! $willBeActive)) {
             $remainingAdmins = User::whereHas('role', fn ($query) => $query->where('name', 'super_admin'))
                 ->where('is_active', true)
                 ->whereKeyNot($user->id)

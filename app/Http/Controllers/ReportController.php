@@ -95,7 +95,7 @@ class ReportController extends Controller
             'reports',
             'Report',
             null,
-            "{$generatedBy} exported ".ucfirst(str_replace('_', ' ', $module))." Report ".strtoupper($format).".",
+            "{$generatedBy} exported ".ucfirst(str_replace('_', ' ', $module)).' Report '.strtoupper($format).'.',
             null,
             [
                 'module' => $module,

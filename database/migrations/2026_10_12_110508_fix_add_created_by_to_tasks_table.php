@@ -10,7 +10,7 @@ return new class extends Migration
     {
         Schema::table('tasks', function (Blueprint $table) {
 
-            if (!Schema::hasColumn('tasks', 'created_by')) {
+            if (! Schema::hasColumn('tasks', 'created_by')) {
 
                 $table->foreignId('created_by')
                     ->after('assigned_to')
@@ -22,7 +22,6 @@ return new class extends Migration
         });
     }
 
-
     public function down(): void
     {
         Schema::table('tasks', function (Blueprint $table) {
@@ -30,7 +29,7 @@ return new class extends Migration
             if (Schema::hasColumn('tasks', 'created_by')) {
 
                 $table->dropForeign([
-                    'created_by'
+                    'created_by',
                 ]);
 
                 $table->dropColumn(

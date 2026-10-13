@@ -32,7 +32,7 @@ class NotificationController extends Controller
 
         // Agar notification data mein action_url diya ho toh wahan redirect karein, warna pichle page par
         $actionUrl = $notif->data['action_url'] ?? null;
-        
+
         return $actionUrl ? redirect($actionUrl) : back();
     }
 

@@ -3,19 +3,18 @@
 namespace App\Models;
 
 use Database\Factories\UserFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
-
 
     protected $fillable = [
         'name',
@@ -23,18 +22,16 @@ class User extends Authenticatable
         'password',
     ];
 
-
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-
     protected static function booted(): void
     {
         static::creating(function (User $user): void {
 
-            if (!$user->role_id) {
+            if (! $user->role_id) {
 
                 $user->role_id = Role::query()
                     ->where('name', 'employee')
@@ -44,7 +41,6 @@ class User extends Authenticatable
 
         });
     }
-
 
     protected function casts(): array
     {
@@ -56,14 +52,12 @@ class User extends Authenticatable
         ];
     }
 
-
     public function auditLogs(): HasMany
     {
         return $this->hasMany(
             AuditLog::class
         );
     }
-
 
     public function role(): BelongsTo
     {
@@ -72,13 +66,11 @@ class User extends Authenticatable
         );
     }
 
-
     /*
     |--------------------------------------------------------------------------
     | Task Relations
     |--------------------------------------------------------------------------
     */
-
 
     public function createdTasks(): HasMany
     {
@@ -88,7 +80,6 @@ class User extends Authenticatable
         );
     }
 
-
     public function assignedTasks(): HasMany
     {
         return $this->hasMany(
@@ -97,23 +88,19 @@ class User extends Authenticatable
         );
     }
 
-
     public function hasPermission(string $permission): bool
     {
-        if (!$this->is_active) {
+        if (! $this->is_active) {
             return false;
         }
-
 
         $this->loadMissing(
             'role.permissions'
         );
 
-
         return $this->role?->permissions
             ->contains('name', $permission) ?? false;
     }
-
 
     public function canAccessAllRecords(): bool
     {
@@ -121,7 +108,6 @@ class User extends Authenticatable
             'records.view_all'
         );
     }
-
 
     public function canAccessRecord(Model $record): bool
     {
@@ -131,11 +117,9 @@ class User extends Authenticatable
 
         }
 
-
         return (int) $record->assigned_to_user_id
             === (int) $this->getKey();
     }
-
 
     public function constrainToAssignedRecords(
         Builder $query,
@@ -147,7 +131,6 @@ class User extends Authenticatable
             return $query;
 
         }
-
 
         return $query->where(
             $column,

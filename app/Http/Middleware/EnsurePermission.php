@@ -36,7 +36,7 @@ class EnsurePermission
         };
 
         $recordId = $recordParameter ? $request->route($recordParameter) : null;
-        if ($module === 'follow_ups' && !$recordId) {
+        if ($module === 'follow_ups' && ! $recordId) {
             $recordId = $request->route('followUp');
         }
         if ($recordId && is_scalar($recordId)) {

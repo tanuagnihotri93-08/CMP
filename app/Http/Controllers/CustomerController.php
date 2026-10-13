@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Customer;
 use App\Models\Lead;
 use App\Models\User;
+use App\Services\ActivityTimeline;
 use Illuminate\Database\QueryException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -92,7 +93,7 @@ class CustomerController extends Controller
     {
         $validated = $this->validateCustomer($request);
 
-        if (!empty($validated['lead_id'])) {
+        if (! empty($validated['lead_id'])) {
             $lead = Lead::findOrFail($validated['lead_id']);
             abort_unless($request->user()->canAccessRecord($lead), 404);
             $this->ensureAssigneeCanAccess($request, $validated, $lead);
@@ -125,7 +126,7 @@ class CustomerController extends Controller
                     ?? Customer::create($validated);
             });
         } catch (QueryException $exception) {
-            if (!$this->isEmailUniqueViolation($exception, 'customers')) {
+            if (! $this->isEmailUniqueViolation($exception, 'customers')) {
                 throw $exception;
             }
 
@@ -134,7 +135,7 @@ class CustomerController extends Controller
                 ->withErrors(['email' => 'A customer with this email address already exists.']);
         }
 
-        if (!empty($validated['lead_id']) && !$customer->wasRecentlyCreated) {
+        if (! empty($validated['lead_id']) && ! $customer->wasRecentlyCreated) {
             return redirect()
                 ->route('customers.show', $customer)
                 ->with('success', 'This lead has already been converted to a customer.');
@@ -152,7 +153,7 @@ class CustomerController extends Controller
         }])->findOrFail($id);
 
         abort_unless(request()->user()->canAccessRecord($customer), 404);
-        if ($customer->lead && !request()->user()->canAccessRecord($customer->lead)) {
+        if ($customer->lead && ! request()->user()->canAccessRecord($customer->lead)) {
             $customer->setRelation('lead', null);
         } elseif ($customer->lead) {
             $customer->lead->setRelation(
@@ -167,7 +168,7 @@ class CustomerController extends Controller
             $customer->activities->filter(fn ($activity) => request()->user()->canAccessRecord($activity))
         );
 
-        $timeline = app(\App\Services\ActivityTimeline::class)
+        $timeline = app(ActivityTimeline::class)
             ->forCustomer($customer, request()->user());
 
         return view('customers.show', compact('customer', 'timeline'));
@@ -202,7 +203,7 @@ class CustomerController extends Controller
         try {
             $customer->update($validated);
         } catch (QueryException $exception) {
-            if (!$this->isEmailUniqueViolation($exception, 'customers')) {
+            if (! $this->isEmailUniqueViolation($exception, 'customers')) {
                 throw $exception;
             }
 
@@ -280,9 +281,8 @@ class CustomerController extends Controller
         array $validated,
         Lead $lead,
         ?int $currentAssigneeId = null
-    ): void
-    {
-        if (!$request->user()->hasPermission('records.assign')) {
+    ): void {
+        if (! $request->user()->hasPermission('records.assign')) {
             return;
         }
 

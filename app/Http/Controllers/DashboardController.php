@@ -2,10 +2,10 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Lead;
+use App\Models\Activity;
 use App\Models\Customer;
 use App\Models\FollowUp;
-use App\Models\Activity;
+use App\Models\Lead;
 use Illuminate\Support\Carbon;
 
 class DashboardController extends Controller

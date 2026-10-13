@@ -45,7 +45,7 @@ class FollowUpController extends Controller
             ->paginate(25)
             ->withQueryString();
         $followUps->each(function (FollowUp $followUp): void {
-            if ($followUp->lead && !request()->user()->canAccessRecord($followUp->lead)) {
+            if ($followUp->lead && ! request()->user()->canAccessRecord($followUp->lead)) {
                 $followUp->setRelation('lead', null);
             }
         });
@@ -97,7 +97,7 @@ class FollowUpController extends Controller
     {
         $followUp = FollowUp::with('lead')->findOrFail($id);
         abort_unless(request()->user()->canAccessRecord($followUp), 404);
-        if ($followUp->lead && !request()->user()->canAccessRecord($followUp->lead)) {
+        if ($followUp->lead && ! request()->user()->canAccessRecord($followUp->lead)) {
             $followUp->setRelation('lead', null);
         }
 
@@ -192,7 +192,7 @@ class FollowUpController extends Controller
         Lead $lead,
         ?int $currentAssigneeId = null
     ): void {
-        if (!$request->user()->hasPermission('records.assign')) {
+        if (! $request->user()->hasPermission('records.assign')) {
             return;
         }
 

@@ -15,28 +15,27 @@ return new class extends Migration
             $table->string('name');
 
             $table->string('company_name')
-                  ->nullable();
+                ->nullable();
 
             $table->string('email')
-                  ->nullable();
+                ->nullable();
 
             $table->string('phone')
-                  ->nullable();
+                ->nullable();
 
             $table->string('source')
-                  ->nullable();
+                ->nullable();
 
             $table->string('status')
-                  ->default('new');
+                ->default('new');
 
             $table->text('notes')
-                  ->nullable();
+                ->nullable();
 
             $table->timestamps();
 
         });
     }
-
 
     public function down(): void
     {

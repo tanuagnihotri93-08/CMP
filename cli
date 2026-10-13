@@ -1,0 +1,193 @@
+[1mdiff --git a/routes/web.php.before-fix-20261012-122011.bak b/routes/web.php[m
+[1mindex c938eab..6e11c8b 100644[m
+[1m--- a/routes/web.php.before-fix-20261012-122011.bak[m
+[1m+++ b/routes/web.php[m
+[36m@@ -17,22 +17,12 @@[m
+ use App\Http\Controllers\TaskController;[m
+ [m
+ [m
+[31m-Route::middleware(['auth'])->group(function () {[m
+[31m-[m
+[31m-    Route::resource('projects', ProjectController::class)->middleware('permission:projects');[m
+[31m-[m
+[31m-    Route::resource('tasks', TaskController::class);[m
+[31m-[m
+[31m-});[m
+[31m-[m
+[31m-[m
+ /*[m
+ |--------------------------------------------------------------------------[m
+ | Authentication Routes[m
+ |--------------------------------------------------------------------------[m
+ */[m
+ [m
+[31m-[m
+ Route::get('/login', [AuthController::class,'login'])[m
+     ->name('login');[m
+ [m
+[36m@@ -40,18 +30,19 @@[m
+ Route::post('/login', [AuthController::class, 'authenticate'])[m
+     ->middleware('throttle:5,1');[m
+ [m
+[32m+[m
+ Route::post('/logout', [AuthController::class, 'logout'])[m
+     ->middleware('auth')[m
+     ->name('logout');[m
+ [m
+ [m
+[32m+[m
+ /*[m
+ |--------------------------------------------------------------------------[m
+ | Default Route[m
+ |--------------------------------------------------------------------------[m
+ */[m
+ [m
+[31m-[m
+ Route::get('/', function () {[m
+ [m
+     return redirect('/login');[m
+[36m@@ -60,62 +51,131 @@[m
+ [m
+ [m
+ [m
+[31m-[m
+[31m-[m
+ /*[m
+ |--------------------------------------------------------------------------[m
+ | Protected CRM Routes[m
+ |--------------------------------------------------------------------------[m
+ */[m
+ [m
+[31m-[m
+ Route::middleware('auth')->group(function(){[m
+ [m
+[32m+[m
+     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])[m
+         ->name('notifications.read-all');[m
+[32m+[m
+[32m+[m
+     Route::post('/notifications/{notification}/read', [NotificationController::class, 'markRead'])[m
+         ->whereUuid('notification')[m
+         ->name('notifications.read');[m
+ [m
+[31m-Route::get('/dashboard',[DashboardController::class,'index'])[m
+[31m-    ->middleware('permission:dashboard')[m
+[31m-    ->name('dashboard');[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    Route::get('/dashboard',[DashboardController::class,'index'])[m
+[32m+[m[32m        ->middleware('permission:dashboard')[m
+[32m+[m[32m        ->name('dashboard');[m
+[32m+[m
+[32m+[m
+ [m
+     Route::resource('leads', LeadController::class)[m
+         ->middleware('permission:leads');[m
+[32m+[m
+[32m+[m
+     Route::resource('customers', CustomerController::class)[m
+         ->middleware('permission:customers');[m
+[32m+[m
+[32m+[m
+     Route::post('/followups/{followUp}/complete', [FollowUpController::class, 'complete'])[m
+         ->middleware('permission:follow_ups')[m
+         ->name('followups.complete');[m
+[32m+[m
+[32m+[m
+     Route::resource('followups', FollowUpController::class)[m
+         ->middleware('permission:follow_ups');[m
+[32m+[m
+[32m+[m
+     Route::resource('activities', ActivityController::class)[m
+         ->middleware('permission:activities');[m
+ [m
+[32m+[m
+[32m+[m
+[32m+[m[32m    /*[m
+[32m+[m[32m    |--------------------------------------------------------------------------[m
+[32m+[m[32m    | Project Management[m
+[32m+[m[32m    |--------------------------------------------------------------------------[m
+[32m+[m[32m    */[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    Route::resource('projects', ProjectController::class);[m
+[32m+[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    /*[m
+[32m+[m[32m    |--------------------------------------------------------------------------[m
+[32m+[m[32m    | Task Management[m
+[32m+[m[32m    |--------------------------------------------------------------------------[m
+[32m+[m[32m    */[m
+[32m+[m
+[32m+[m
+[32m+[m[32m    Route::resource('tasks', TaskController::class);[m
+[32m+[m
+[32m+[m
+[32m+[m
+[32m+[m
+     Route::get('/audit-logs', [AuditLogController::class, 'index'])[m
+         ->middleware('permission:audit_logs')[m
+         ->name('audit-logs.index');[m
+ [m
+[32m+[m
+[32m+[m
+     Route::get('/reports', [ReportController::class, 'index'])[m
+         ->middleware('permission:reports')[m
+         ->name('reports.index');[m
+[32m+[m
+[32m+[m
+     Route::get('/reports/{module}/export/{format}', [ReportController::class, 'export'])[m
+         ->middleware('permission:reports.export')[m
+         ->name('reports.export');[m
+ [m
+[32m+[m
+[32m+[m
+     Route::prefix('admin')->name('admin.')->group(function (): void {[m
+[32m+[m
+[32m+[m
+         Route::middleware('permission:users')->group(function (): void {[m
+[31m-            Route::get('/users', [UserManagementController::class, 'index'])->name('users.index');[m
+[31m-            Route::put('/users/{user}', [UserManagementController::class, 'update'])->name('users.update');[m
+[32m+[m
+[32m+[m[32m            Route::get('/users', [UserManagementController::class, 'index'])[m
+[32m+[m[32m                ->name('users.index');[m
+[32m+[m
+[32m+[m
+[32m+[m[32m            Route::put('/users/{user}', [UserManagementController::class, 'update'])[m
+[32m+[m[32m                ->name('users.update');[m
+[32m+[m
+         });[m
+[32m+[m
+[32m+[m
+[32m+[m
+         Route::middleware('permission:roles')->group(function (): void {[m
+[31m-            Route::get('/roles', [RoleManagementController::class, 'index'])->name('roles.index');[m
+[31m-            Route::get('/roles/{role}/edit', [RoleManagementController::class, 'edit'])->name('roles.edit');[m
+[31m-            Route::put('/roles/{role}', [RoleManagementController::class, 'update'])->name('roles.update');[m
+[32m+[m
+[32m+[m
+[32m+[m[32m            Route::get('/roles', [RoleManagementController::class, 'index'])[m
+[32m+[m[32m                ->name('roles.index');[m
+[32m+[m
+[32m+[m
+[32m+[m[32m            Route::get('/roles/{role}/edit', [RoleManagementController::class, 'edit'])[m
+[32m+[m[32m                ->name('roles.edit');[m
+[32m+[m
+[32m+[m
+[32m+[m[32m            Route::put('/roles/{role}', [RoleManagementController::class, 'update'])[m
+[32m+[m[32m                ->name('roles.update');[m
+[32m+[m
+         });[m
+[32m+[m
+     });[m
+[32m+[m
+[32m+[m
+[32m+[m
+     Route::get('/performance', [PerformanceController::class, 'index'])[m
+[31m-    ->name('performance.index');[m
+[32m+[m[32m        ->name('performance.index');[m
+[32m+[m
+ [m
+ });[m
+\ No newline at end of file[m

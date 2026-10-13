@@ -9,7 +9,7 @@ return new class extends Migration
     {
         $permissionId = DB::table('permissions')->where('name', 'reports.export')->value('id');
 
-        if (!$permissionId) {
+        if (! $permissionId) {
             $permissionId = DB::table('permissions')->insertGetId([
                 'name' => 'reports.export',
                 'description' => 'Export CRM reports',

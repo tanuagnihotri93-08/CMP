@@ -4,9 +4,9 @@ namespace App\Http\Controllers;
 
 use App\Models\Activity;
 use App\Models\Customer;
+use App\Models\FollowUp;
 use App\Models\Lead;
 use App\Models\User;
-use App\Models\FollowUp;
 use Illuminate\Support\Facades\DB;
 
 class PerformanceController extends Controller
@@ -15,15 +15,13 @@ class PerformanceController extends Controller
     {
         $user = auth()->user();
 
-        if (!$user->role) {
+        if (! $user->role) {
             abort(403);
         }
-
 
         if ($user->role->name === 'employee') {
             abort(403, 'Performance access denied');
         }
-
 
         /*
         |--------------------------------------------------------------------------
@@ -31,25 +29,21 @@ class PerformanceController extends Controller
         |--------------------------------------------------------------------------
         */
 
-
         if ($user->role->name === 'super_admin') {
-
 
             $users = User::where('is_active', true)
                 ->whereHas('role', function ($q) {
 
                     $q->whereIn('name', [
                         'manager',
-                        'employee'
+                        'employee',
                     ]);
 
                 })
                 ->with('role')
                 ->get();
 
-
         } elseif ($user->role->name === 'manager') {
-
 
             $users = User::where('is_active', true)
                 ->whereHas('role', function ($q) {
@@ -60,18 +54,13 @@ class PerformanceController extends Controller
                 ->with('role')
                 ->get();
 
-
         } else {
 
             abort(403);
 
         }
 
-
-
         $visibleUserIds = $users->pluck('id');
-
-
 
         /*
         |--------------------------------------------------------------------------
@@ -79,38 +68,29 @@ class PerformanceController extends Controller
         |--------------------------------------------------------------------------
         */
 
-
         $performance = $users->map(function ($employee) {
-
 
             $leads = Lead::where(
                 'assigned_to_user_id',
                 $employee->id
             )->count();
 
-
             $customers = Customer::where(
                 'assigned_to_user_id',
                 $employee->id
             )->count();
-
-
 
             $activities = Activity::where(
                 'assigned_to_user_id',
                 $employee->id
             )->count();
 
-
-
             $followUps = FollowUp::where(
                 'assigned_to_user_id',
                 $employee->id
             )
-            ->where('status','Pending')
-            ->count();
-
-
+                ->where('status', 'Pending')
+                ->count();
 
             return [
 
@@ -124,18 +104,13 @@ class PerformanceController extends Controller
 
                 'followUps' => $followUps,
 
-
                 'score' => $leads > 0
                     ? round(($customers / $leads) * 100)
-                    : 0
+                    : 0,
 
             ];
 
-
         });
-
-
-
 
         /*
         |--------------------------------------------------------------------------
@@ -143,54 +118,40 @@ class PerformanceController extends Controller
         |--------------------------------------------------------------------------
         */
 
-
         $totalLeads = Lead::whereIn(
             'assigned_to_user_id',
             $visibleUserIds
         )->count();
-
-
 
         $totalCustomers = Customer::whereIn(
             'assigned_to_user_id',
             $visibleUserIds
         )->count();
 
-
-
         $totalActivities = Activity::whereIn(
             'assigned_to_user_id',
             $visibleUserIds
         )->count();
 
-
-
         $totalPendingFollowUps = FollowUp::whereIn(
             'assigned_to_user_id',
             $visibleUserIds
         )
-        ->where('status','Pending')
-        ->count();
-
-
+            ->where('status', 'Pending')
+            ->count();
 
         $upcomingFollowUps = FollowUp::whereIn(
             'assigned_to_user_id',
             $visibleUserIds
         )
-        ->whereDate('date','>=',now())
-        ->orderBy('date')
-        ->limit(5)
-        ->get();
-
-
+            ->whereDate('date', '>=', now())
+            ->orderBy('date')
+            ->limit(5)
+            ->get();
 
         $conversionRate = $totalLeads > 0
             ? round(($totalCustomers / $totalLeads) * 100)
             : 0;
-
-
-
 
         /*
         |--------------------------------------------------------------------------
@@ -198,24 +159,20 @@ class PerformanceController extends Controller
         |--------------------------------------------------------------------------
         */
 
-
         $monthlyLeads = Lead::whereIn(
             'assigned_to_user_id',
             $visibleUserIds
         )
-        ->select(
+            ->select(
 
-            DB::raw('MONTH(created_at) as month'),
+                DB::raw('MONTH(created_at) as month'),
 
-            DB::raw('COUNT(*) as total')
+                DB::raw('COUNT(*) as total')
 
-        )
-        ->groupBy('month')
-        ->pluck('total','month')
-        ->toArray();
-
-
-
+            )
+            ->groupBy('month')
+            ->pluck('total', 'month')
+            ->toArray();
 
         /*
         |--------------------------------------------------------------------------
@@ -223,49 +180,37 @@ class PerformanceController extends Controller
         |--------------------------------------------------------------------------
         */
 
-
         $leadStatus = [
-
 
             'New' => Lead::whereIn(
                 'assigned_to_user_id',
                 $visibleUserIds
             )
-            ->where('status','New')
-            ->count(),
-
-
+                ->where('status', 'New')
+                ->count(),
 
             'Proposal' => Lead::whereIn(
                 'assigned_to_user_id',
                 $visibleUserIds
             )
-            ->where('status','Proposal')
-            ->count(),
-
-
+                ->where('status', 'Proposal')
+                ->count(),
 
             'Won' => Lead::whereIn(
                 'assigned_to_user_id',
                 $visibleUserIds
             )
-            ->where('status','Won')
-            ->count(),
-
-
+                ->where('status', 'Won')
+                ->count(),
 
             'Lost' => Lead::whereIn(
                 'assigned_to_user_id',
                 $visibleUserIds
             )
-            ->where('status','Lost')
-            ->count(),
+                ->where('status', 'Lost')
+                ->count(),
 
         ];
-
-
-
-
 
         return view('performance.index', compact(
 
