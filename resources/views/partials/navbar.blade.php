@@ -81,24 +81,26 @@
                 </div>
 
                 @forelse($navbarNotifications as $notification)
-                    <div @class(['crm-notification-item', 'is-unread' => is_null($notification->read_at)])>
-                        <span class="crm-notification-indicator" aria-hidden="true"></span>
-                        <div class="crm-notification-copy">
-                            <strong>{{ $notification->data['title'] ?? 'CRM notification' }}</strong>
-                            <p>{{ $notification->data['message'] ?? '' }}</p>
-                            <time datetime="{{ $notification->created_at->toIso8601String() }}">
-                                {{ $notification->created_at->diffForHumans() }}
-                            </time>
-                        </div>
-                        @if(is_null($notification->read_at))
-                            <form method="POST" action="{{ route('notifications.read', $notification->id) }}" novalidate>
-                                @csrf
-                                <button type="submit" class="crm-notification-mark-read" aria-label="Mark notification as read">
-                                    <i class="bi bi-check2" aria-hidden="true"></i>
-                                </button>
-                            </form>
-                        @endif
-                    </div>
+                    <form
+                        method="POST"
+                        action="{{ route('notifications.read', $notification->id) }}"
+                        @class(['crm-notification-item', 'is-unread' => is_null($notification->read_at)])
+                        novalidate>
+                        @csrf
+                        <button type="submit" class="crm-notification-entry">
+                            <span class="crm-notification-indicator" aria-hidden="true"></span>
+                            <span class="crm-notification-copy">
+                                <strong>{{ $notification->data['title'] ?? 'CRM notification' }}</strong>
+                                <span>{{ $notification->data['message'] ?? '' }}</span>
+                                <time datetime="{{ $notification->created_at->toIso8601String() }}">
+                                    {{ $notification->created_at->diffForHumans() }}
+                                </time>
+                                <span class="crm-notification-read-state">
+                                    {{ is_null($notification->read_at) ? 'Unread' : 'Read' }}
+                                </span>
+                            </span>
+                        </button>
+                    </form>
                 @empty
                     <p class="crm-notification-empty">You are all caught up.</p>
                 @endforelse
@@ -488,7 +490,8 @@
     font-weight:600;
     line-height:1.35;
 }
-.crm-notification-copy p{
+.crm-notification-copy > span:not(.crm-notification-read-state){
+    display:block;
     margin:4px 0 8px;
     color:#cbd5e1;
     font-size:13px;
@@ -501,24 +504,32 @@
 }
 
 /* Mark as read button */
-.crm-notification-mark-read{
-    flex-shrink:0;
-    width:32px;
-    height:32px;
-    display:grid;
-    place-items:center;
-    color:#94a3b8;
-    background:rgba(255,255,255,.06);
-    border:1px solid rgba(255,255,255,.10);
-    border-radius:10px;
+.crm-notification-entry{
+    display:flex;
+    width:100%;
+    align-items:flex-start;
+    gap:14px;
+    border:0;
+    padding:0;
+    background:transparent;
+    color:inherit;
+    font:inherit;
+    text-align:left;
     cursor:pointer;
-    transition:.3s ease;
 }
-.crm-notification-mark-read:hover{
-    color:#fff;
-    background:linear-gradient(135deg,#10b981,#059669);
-    border-color:transparent;
-    box-shadow:0 6px 16px rgba(16,185,129,.35);
+.crm-notification-entry:focus-visible{
+    outline:2px solid #60a5fa;
+    outline-offset:4px;
+    border-radius:8px;
+}
+.crm-notification-read-state{
+    display:block;
+    margin-top:4px;
+    color:#94a3b8;
+    font-size:11px;
+}
+.crm-notification-item.is-unread .crm-notification-read-state{
+    color:#93c5fd;
 }
 
 /* Empty state */

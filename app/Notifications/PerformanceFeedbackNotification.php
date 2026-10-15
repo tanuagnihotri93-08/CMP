@@ -21,6 +21,7 @@ class PerformanceFeedbackNotification extends Notification
         return [
             'title' => 'New performance feedback',
             'message' => $this->feedback->message,
+            'action_url' => route('performance-feedback.index'),
             'feedback_id' => $this->feedback->id,
             'sender_id' => $this->feedback->sender_id,
             'sender_name' => $this->feedback->sender?->name,
