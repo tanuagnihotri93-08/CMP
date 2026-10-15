@@ -3,6 +3,7 @@
 use App\Http\Controllers\ActivityController;
 use App\Http\Controllers\Admin\RoleManagementController;
 use App\Http\Controllers\Admin\UserManagementController;
+use App\Http\Controllers\AnalyticsController;
 use App\Http\Controllers\AuditLogController;
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\CustomerController;
@@ -15,6 +16,7 @@ use App\Http\Controllers\ProjectController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\TaskController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\PerformanceFeedbackController;
 
 /*
 |--------------------------------------------------------------------------
@@ -39,9 +41,7 @@ Route::post('/logout', [AuthController::class, 'logout'])
 */
 
 Route::get('/', function () {
-
     return redirect('/login');
-
 });
 
 /*
@@ -51,6 +51,9 @@ Route::get('/', function () {
 */
 
 Route::middleware('auth')->group(function () {
+
+    Route::get('/analytics', [AnalyticsController::class, 'index'])
+        ->name('analytics.index');
 
     Route::post('/notifications/read-all', [NotificationController::class, 'markAllRead'])
         ->name('notifications.read-all');
@@ -134,7 +137,40 @@ Route::middleware('auth')->group(function () {
 
     });
 
-    Route::get('/performance', [PerformanceController::class, 'index'])
-        ->name('performance.index');
+    /*
+    |--------------------------------------------------------------------------
+    | Performance & Feedback
+    |--------------------------------------------------------------------------
+    */
+Route::get('/performance', [PerformanceController::class, 'index'])
+    ->middleware('permission:performance.view')
+    ->name('performance.index');
+    Route::get(
+        '/performance-feedback',
+        [PerformanceFeedbackController::class, 'index']
+    )
+    ->name('performance-feedback.index')
+    ->middleware('permission:performance.feedback.view');
+
+    Route::get(
+        '/performance-feedback/create',
+        [PerformanceFeedbackController::class, 'create']
+    )
+    ->name('performance-feedback.create')
+    ->middleware('permission:performance.feedback.create');
+
+    Route::post(
+        '/performance-feedback',
+        [PerformanceFeedbackController::class, 'store']
+    )
+    ->name('performance-feedback.store')
+    ->middleware('permission:performance.feedback.create');
+
+    Route::patch(
+        '/performance-feedback/{feedback}/status',
+        [PerformanceFeedbackController::class, 'updateStatus']
+    )
+    ->name('performance-feedback.status')
+    ->middleware('permission:performance.feedback.view');
 
 });

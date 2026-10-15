@@ -625,29 +625,30 @@ font-family:'Inter',Arial,sans-serif;
     }
 }
 
-.sidebar{
-
-width:280px;
-height:100vh;
-position:fixed;
-left:0;
-top:0;
-
+:root {
+    --sidebar-width: 280px;
 }
-.content{
 
-    margin-left:280px;
+body.sidebar-collapsed {
+    --sidebar-width: 90px;
+}
 
-    padding:40px;
+.sidebar {
+    width: var(--sidebar-width);
+    height: 100vh;
+    position: fixed;
+    left: 0;
+    top: 0;
+    transition: width .35s ease;
+}
 
-    padding-top:35px;
-
-    min-height:100vh;
-
-    transition:.35s ease;
-
-    overflow-y:auto;
-
+.content {
+    margin-left: var(--sidebar-width);
+    padding: 40px;
+    padding-top: 35px;
+    min-height: 100vh;
+    transition: margin-left .35s ease;
+    overflow-y: auto;
 }
 .lead-info div:last-child{
 

@@ -137,4 +137,11 @@ class User extends Authenticatable
             $this->getKey()
         );
     }
+    public function assignedLeads()
+{
+    return $this->hasMany(
+        Lead::class,
+        'assigned_to_user_id'
+    );
+}
 }

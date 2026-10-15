@@ -6,6 +6,8 @@ use App\Models\Activity;
 use App\Models\Customer;
 use App\Models\FollowUp;
 use App\Models\Lead;
+use App\Models\Performance;
+use App\Models\PerformanceHistory;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
 
@@ -15,224 +17,131 @@ class PerformanceController extends Controller
     {
         $user = auth()->user();
 
-        if (! $user->role) {
-            abort(403);
-        }
+        abort_unless($user && $user->role, 403);
 
-        if ($user->role->name === 'employee') {
-            abort(403, 'Performance access denied');
-        }
+        /* Role based visibility */
+        $allowedRoles = match ($user->role->name) {
+            'super_admin' => ['manager', 'employee'],
+            'manager' => ['employee'],
+            default => abort(403, 'Performance access denied'),
+        };
 
-        /*
-        |--------------------------------------------------------------------------
-        | Visible Users
-        |--------------------------------------------------------------------------
-        */
+        $visibleUserIds = User::where('is_active', true)
+            ->whereHas('role', fn($q) => $q->whereIn('name', $allowedRoles))
+            ->pluck('id');
 
-        if ($user->role->name === 'super_admin') {
+        /* Team Performance + Ranking (snapshot, read-only) */
+        $performance = Performance::with('user.role')
+            ->whereIn('user_id', $visibleUserIds)
+            ->orderByDesc('total_score')
+            ->orderBy('user_id')
+            ->get();
 
-            $users = User::where('is_active', true)
-                ->whereHas('role', function ($q) {
+        $ranking = $performance;
 
-                    $q->whereIn('name', [
-                        'manager',
-                        'employee',
-                    ]);
+        $averageScore = $performance->isNotEmpty()
+            ? (int) round($performance->avg('total_score'))
+            : 0;
 
-                })
-                ->with('role')
-                ->get();
+        $lastUpdated = $performance->max('updated_at');
 
-        } elseif ($user->role->name === 'manager') {
+        /* Dashboard Cards */
+        $totalLeads = Lead::whereIn('assigned_to_user_id', $visibleUserIds)->count();
 
-            $users = User::where('is_active', true)
-                ->whereHas('role', function ($q) {
+        $totalCustomers = Customer::whereIn('assigned_to_user_id', $visibleUserIds)->count();
 
-                    $q->where('name', 'employee');
+        $totalActivities = Activity::whereIn('assigned_to_user_id', $visibleUserIds)->count();
 
-                })
-                ->with('role')
-                ->get();
-
-        } else {
-
-            abort(403);
-
-        }
-
-        $visibleUserIds = $users->pluck('id');
-
-        /*
-        |--------------------------------------------------------------------------
-        | Team Performance
-        |--------------------------------------------------------------------------
-        */
-
-        $performance = $users->map(function ($employee) {
-
-            $leads = Lead::where(
-                'assigned_to_user_id',
-                $employee->id
-            )->count();
-
-            $customers = Customer::where(
-                'assigned_to_user_id',
-                $employee->id
-            )->count();
-
-            $activities = Activity::where(
-                'assigned_to_user_id',
-                $employee->id
-            )->count();
-
-            $followUps = FollowUp::where(
-                'assigned_to_user_id',
-                $employee->id
-            )
-                ->where('status', 'Pending')
-                ->count();
-
-            return [
-
-                'user' => $employee,
-
-                'leads' => $leads,
-
-                'customers' => $customers,
-
-                'activities' => $activities,
-
-                'followUps' => $followUps,
-
-                'score' => $leads > 0
-                    ? round(($customers / $leads) * 100)
-                    : 0,
-
-            ];
-
-        });
-
-        /*
-        |--------------------------------------------------------------------------
-        | Dashboard Cards
-        |--------------------------------------------------------------------------
-        */
-
-        $totalLeads = Lead::whereIn(
-            'assigned_to_user_id',
-            $visibleUserIds
-        )->count();
-
-        $totalCustomers = Customer::whereIn(
-            'assigned_to_user_id',
-            $visibleUserIds
-        )->count();
-
-        $totalActivities = Activity::whereIn(
-            'assigned_to_user_id',
-            $visibleUserIds
-        )->count();
-
-        $totalPendingFollowUps = FollowUp::whereIn(
-            'assigned_to_user_id',
-            $visibleUserIds
-        )
+        $totalPendingFollowUps = FollowUp::whereIn('assigned_to_user_id', $visibleUserIds)
             ->where('status', 'Pending')
             ->count();
 
-        $upcomingFollowUps = FollowUp::whereIn(
-            'assigned_to_user_id',
-            $visibleUserIds
-        )
-            ->whereDate('date', '>=', now())
+        $upcomingFollowUps = FollowUp::whereIn('assigned_to_user_id', $visibleUserIds)
+            ->whereDate('date', '>=', today())
             ->orderBy('date')
             ->limit(5)
             ->get();
 
         $conversionRate = $totalLeads > 0
-            ? round(($totalCustomers / $totalLeads) * 100)
+            ? (int) round(($totalCustomers / $totalLeads) * 100)
             : 0;
 
-        /*
-        |--------------------------------------------------------------------------
-        | Monthly Leads
-        |--------------------------------------------------------------------------
-        */
-
-        $monthlyLeads = Lead::whereIn(
-            'assigned_to_user_id',
-            $visibleUserIds
-        )
-            ->select(
-
-                DB::raw('MONTH(created_at) as month'),
-
-                DB::raw('COUNT(*) as total')
-
-            )
-            ->groupBy('month')
-            ->pluck('total', 'month')
+        /* Monthly Leads (current year) */
+        $monthlyLeads = Lead::whereIn('assigned_to_user_id', $visibleUserIds)
+            ->whereYear('created_at', now()->year)
+            ->get(['created_at'])
+            ->groupBy(fn($lead) => (int) $lead->created_at->format('n'))
+            ->map
+            ->count()
             ->toArray();
 
-        /*
-        |--------------------------------------------------------------------------
-        | Lead Status
-        |--------------------------------------------------------------------------
-        */
+        /* Lead Status (single query) */
+        $statusCounts = Lead::whereIn('assigned_to_user_id', $visibleUserIds)
+            ->select('status', DB::raw('COUNT(*) as total'))
+            ->groupBy('status')
+            ->pluck('total', 'status');
 
         $leadStatus = [
-
-            'New' => Lead::whereIn(
-                'assigned_to_user_id',
-                $visibleUserIds
-            )
-                ->where('status', 'New')
-                ->count(),
-
-            'Proposal' => Lead::whereIn(
-                'assigned_to_user_id',
-                $visibleUserIds
-            )
-                ->where('status', 'Proposal')
-                ->count(),
-
-            'Won' => Lead::whereIn(
-                'assigned_to_user_id',
-                $visibleUserIds
-            )
-                ->where('status', 'Won')
-                ->count(),
-
-            'Lost' => Lead::whereIn(
-                'assigned_to_user_id',
-                $visibleUserIds
-            )
-                ->where('status', 'Lost')
-                ->count(),
-
+            'New' => $statusCounts['New'] ?? 0,
+            'Proposal' => $statusCounts['Proposal'] ?? 0,
+            'Won' => $statusCounts['Won'] ?? 0,
+            'Lost' => $statusCounts['Lost'] ?? 0,
         ];
 
+        /* History (ek hi query, trend aur meter dono ke liye) */
+        $historyByUser = PerformanceHistory::with('user')
+            ->whereIn('user_id', $visibleUserIds)
+            ->orderBy('snapshot_date')
+            ->get()
+            ->groupBy('user_id');
+
+        /* Performance Trend Data */
+        $performanceTrend = $historyByUser
+            ->map(function ($history) {
+                return [
+                    'name' => optional($history->first()->user)->name ?? 'Unknown',
+                    'dates' => $history->pluck('snapshot_date')
+                        ->map(fn($date) => $date->format('d M'))
+                        ->values(),
+                    'scores' => $history->pluck('total_score')->values(),
+                ];
+            })
+            ->values();
+
+        /* Smart Meter: previous snapshot se difference */
+        $meter = $performance->mapWithKeys(function ($row) use ($historyByUser) {
+            $snaps = $historyByUser->get($row->user_id, collect())->values();
+            $count = $snaps->count();
+
+            $current = (int) $row->total_score;
+            $previous = $count > 1 ? (int) $snaps[$count - 2]->total_score : null;
+            $diff = $previous === null ? null : $current - $previous;
+
+            $status = match (true) {
+                $diff === null => 'New',
+                $diff > 0 => 'Improving',
+                $diff < 0 => 'Declining',
+                default => 'Stable',
+            };
+
+            return [$row->user_id => ['current' => $current, 'diff' => $diff, 'status' => $status]];
+        });
+
         return view('performance.index', compact(
-
             'performance',
-
+            'ranking',
+            'averageScore',
+            'lastUpdated',
             'totalLeads',
-
             'totalCustomers',
-
             'totalActivities',
-
             'totalPendingFollowUps',
-
             'upcomingFollowUps',
-
             'conversionRate',
-
             'monthlyLeads',
-
-            'leadStatus'
-
+            'leadStatus',
+            'performanceTrend',
+            'meter'
         ));
-
     }
 }

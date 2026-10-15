@@ -282,18 +282,43 @@ Manager	                    manager@crm.com  	                           manager
 __________________________________________________________________________________ |
 Employee	                 	employee@crm.com                           employee123 |
 -----------------------------------------------------------------------------------+
-Email:
-admin@crm.com
-
-Password:
-admin123
-Email:
-manager@crm.com
-
-Password:
-manager123
-Email:
-employee@crm.com
-
-Password:
-employee123
+                    CRM DATA LAYER
+                         |
+     -----------------------------------------
+     |              |             |            |
+   Leads          Tasks       Follow Ups   Activities
+     |              |             |            |
+     -----------------------------------------
+                         |
+                         ↓
+            PERFORMANCE INTELLIGENCE ENGINE
+                         |
+        -------------------------------------
+        |                 |                 |
+   Score Engine      Trend Analysis     Insights
+        |                 |                 |
+        ↓                 ↓                 ↓
+ Automatic Score     Analytics Data    Recommendations
+        |
+        |
+  --------------------------------
+  |              |               |
+Lead Handling  Follow-up     Conversion
+Task Completion Completion    Rate
+                         |
+                         ↓
+              PERFORMANCE MANAGEMENT
+                         |
+        --------------------------------
+        |              |              |
+     Reviews       Feedback        Goals
+        |              |              |
+     Rating      Comments      Improvement
+                         |
+                         ↓
+              EMPLOYEE DASHBOARD
+                         |
+                         ↓
+              Notifications + History
+------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+              
