@@ -50,7 +50,7 @@ Route::get('/', function () {
 |--------------------------------------------------------------------------
 */
 
-Route::middleware('auth')->group(function () {
+Route::middleware(['auth', 'active'])->group(function () {
 
     Route::get('/analytics', [AnalyticsController::class, 'index'])
         ->name('analytics.index');
@@ -68,6 +68,10 @@ Route::middleware('auth')->group(function () {
 
     Route::resource('leads', LeadController::class)
         ->middleware('permission:leads');
+
+    Route::patch('/leads/{lead}/remarks', [LeadController::class, 'updateRemarks'])
+        ->middleware('permission:leads')
+        ->name('leads.remarks.update');
 
     Route::resource('customers', CustomerController::class)
         ->middleware('permission:customers');

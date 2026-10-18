@@ -12,3 +12,8 @@ Schedule::command('performance:calculate')
     ->dailyAt('23:55')
     ->withoutOverlapping()
     ->onOneServer();
+
+Schedule::command('followups:send-reminders')
+    ->everyMinute()
+    ->withoutOverlapping()
+    ->onOneServer();
