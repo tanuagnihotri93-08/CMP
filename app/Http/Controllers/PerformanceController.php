@@ -28,7 +28,7 @@ class PerformanceController extends Controller
 
         $visibleUserIds = User::where('is_active', true)
             ->whereHas('role', fn($q) => $q->whereIn('name', $allowedRoles))
-            ->pluck('id');
+            ->select('id');
 
         /* Team Performance + Ranking (snapshot, read-only) */
         $performance = Performance::with('user.role')
@@ -53,7 +53,7 @@ class PerformanceController extends Controller
         $totalActivities = Activity::whereIn('assigned_to_user_id', $visibleUserIds)->count();
 
         $totalPendingFollowUps = FollowUp::whereIn('assigned_to_user_id', $visibleUserIds)
-            ->where('status', 'Pending')
+            ->where('status', 'scheduled')
             ->count();
 
         $upcomingFollowUps = FollowUp::whereIn('assigned_to_user_id', $visibleUserIds)
@@ -67,13 +67,20 @@ class PerformanceController extends Controller
             : 0;
 
         /* Monthly Leads (current year) */
+        $monthExpression = DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(strftime('%m', created_at) AS INTEGER)"
+            : 'MONTH(created_at)';
+
+        $yearStart = now()->startOfYear();
+        $nextYearStart = $yearStart->copy()->addYear();
+
         $monthlyLeads = Lead::whereIn('assigned_to_user_id', $visibleUserIds)
-            ->whereYear('created_at', now()->year)
-            ->get(['created_at'])
-            ->groupBy(fn($lead) => (int) $lead->created_at->format('n'))
-            ->map
-            ->count()
-            ->toArray();
+            ->where('created_at', '>=', $yearStart)
+            ->where('created_at', '<', $nextYearStart)
+            ->selectRaw($monthExpression.' as month, COUNT(*) as total')
+            ->groupBy('month')
+            ->pluck('total', 'month')
+            ->all();
 
         /* Lead Status (single query) */
         $statusCounts = Lead::whereIn('assigned_to_user_id', $visibleUserIds)
@@ -91,6 +98,7 @@ class PerformanceController extends Controller
         /* History (ek hi query, trend aur meter dono ke liye) */
         $historyByUser = PerformanceHistory::with('user')
             ->whereIn('user_id', $visibleUserIds)
+            ->where('snapshot_date', '>=', today()->subDays(89)->toDateString())
             ->orderBy('snapshot_date')
             ->get()
             ->groupBy('user_id');

@@ -9,6 +9,7 @@ class FollowUp extends Model
     protected $fillable = [
         'lead_id',
         'date',
+        'reminder_sent_at',
         'type',
         'remark',
         'status',
@@ -19,6 +20,7 @@ class FollowUp extends Model
     {
         return [
             'date' => 'datetime',
+            'reminder_sent_at' => 'datetime',
         ];
     }
 
