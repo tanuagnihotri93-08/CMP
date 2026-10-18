@@ -10,12 +10,23 @@ class SeederSecurityTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_default_test_account_is_not_seeded_in_production(): void
+    public function test_default_crm_accounts_are_not_seeded_in_production(): void
     {
         $this->app->detectEnvironment(static fn () => 'production');
 
         app(DatabaseSeeder::class)->run();
 
-        $this->assertDatabaseMissing('users', ['email' => 'test@example.com']);
+        foreach (['admin@crm.com', 'manager@crm.com', 'employee@crm.com'] as $email) {
+            $this->assertDatabaseMissing('users', ['email' => $email]);
+        }
+    }
+
+    public function test_default_crm_accounts_remain_available_in_testing(): void
+    {
+        app(DatabaseSeeder::class)->run();
+
+        foreach (['admin@crm.com', 'manager@crm.com', 'employee@crm.com'] as $email) {
+            $this->assertDatabaseHas('users', ['email' => $email]);
+        }
     }
 }

@@ -7,7 +7,9 @@ use App\Models\Customer;
 use App\Models\FollowUp;
 use App\Models\Lead;
 use App\Models\Permission;
+use App\Models\Project;
 use App\Models\Role;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -136,6 +138,59 @@ class RolePermissionTest extends TestCase
             ->assertDontSee(route('customers.create'), false);
     }
 
+    public function test_users_without_project_and_task_view_permissions_cannot_access_their_lists_or_details(): void
+    {
+        $employee = $this->userWithRole('employee');
+        $project = Project::create([
+            'name' => 'Restricted project',
+            'status' => 'Active',
+            'created_by' => $employee->id,
+        ]);
+        $task = Task::create([
+            'project_id' => $project->id,
+            'assigned_to' => $employee->id,
+            'created_by' => $employee->id,
+            'title' => 'Restricted task',
+            'priority' => 'Medium',
+            'status' => 'Pending',
+        ]);
+
+        $this->actingAs($employee);
+
+        $this->get(route('projects.index'))->assertForbidden();
+        $this->get(route('projects.show', $project))->assertForbidden();
+        $this->get(route('tasks.index'))->assertForbidden();
+        $this->get(route('tasks.show', $task))->assertForbidden();
+    }
+
+    public function test_project_update_permission_allows_the_manager_to_edit_and_update_a_project(): void
+    {
+        $manager = $this->userWithRole('manager');
+        Permission::where('name', 'projects.update')
+            ->firstOrFail()
+            ->roles()
+            ->syncWithoutDetaching([$manager->role_id]);
+        $project = Project::create([
+            'name' => 'Project before update',
+            'status' => 'Planning',
+            'created_by' => $manager->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->get(route('projects.edit', $project))
+            ->assertOk();
+
+        $this->put(route('projects.update', $project), [
+            'name' => 'Project after update',
+            'status' => 'Active',
+        ])->assertRedirect(route('projects.show', $project));
+
+        $this->assertDatabaseHas('projects', [
+            'id' => $project->id,
+            'name' => 'Project after update',
+        ]);
+    }
+
     public function test_employee_cannot_update_another_users_follow_up_even_with_an_accessible_lead(): void
     {
         $employee = $this->userWithRole('employee');
@@ -184,6 +239,10 @@ class RolePermissionTest extends TestCase
 
         $this->post(route('leads.store'), [
             'name' => 'Employee created lead',
+            'company_name' => 'Employee Company',
+            'email' => 'employee-created@example.test',
+            'phone' => '+1 (555) 555-0112',
+            'source' => 'Website',
             'status' => 'new',
         ])->assertRedirect(route('leads.index'));
 
@@ -265,6 +324,28 @@ class RolePermissionTest extends TestCase
         ])->assertStatus(422);
     }
 
+    public function test_another_active_super_admin_remains_when_one_is_demoted(): void
+    {
+        $admin = $this->userWithRole('super_admin');
+        $otherAdmin = $this->userWithRole('super_admin');
+
+        $this->actingAs($admin)
+            ->put(route('admin.users.update', $otherAdmin), [
+                'role_id' => Role::where('name', 'manager')->value('id'),
+                'is_active' => true,
+            ])->assertRedirect(route('admin.users.index'));
+
+        $this->assertDatabaseHas('users', [
+            'id' => $admin->id,
+            'role_id' => Role::where('name', 'super_admin')->value('id'),
+            'is_active' => true,
+        ]);
+        $this->assertDatabaseHas('users', [
+            'id' => $otherAdmin->id,
+            'role_id' => Role::where('name', 'manager')->value('id'),
+        ]);
+    }
+
     public function test_role_permission_changes_are_logged_and_inactive_users_are_blocked(): void
     {
         $admin = $this->userWithRole('super_admin');
@@ -321,6 +402,10 @@ class RolePermissionTest extends TestCase
 
         $this->post(route('leads.store'), [
             'name' => 'Assigned by manager',
+            'company_name' => 'Manager Company',
+            'email' => 'manager-created@example.test',
+            'phone' => '+1 (555) 555-0113',
+            'source' => 'Referral',
             'status' => 'qualified',
             'assigned_to_user_id' => $employee->id,
         ])->assertRedirect(route('leads.index'));

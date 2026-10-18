@@ -28,14 +28,17 @@ class CrmHardeningTest extends TestCase
                 'status' => 'admin',
                 'source' => 'untrusted',
             ])
-            ->assertSessionHasErrors(['name', 'email', 'phone', 'status', 'source']);
+            ->assertSessionHasErrors(['name', 'company_name', 'email', 'phone', 'status', 'source']);
 
         $this->post(route('leads.store'), [
             'name' => '  Jordan Prospect  ',
+            'company_name' => 'Jordan Company',
             'email' => ' JORDAN@EXAMPLE.TEST ',
             'phone' => '+1 (555) 555-0100',
             'status' => 'qualified',
             'source' => 'Website',
+            'city' => 'Austin',
+            'remarks' => 'Requested a product walkthrough.',
             'id' => 5000,
             'created_at' => '2000-01-01 00:00:00',
         ])->assertRedirect(route('leads.index'));
@@ -44,7 +47,18 @@ class CrmHardeningTest extends TestCase
         $this->assertNotSame(5000, $lead->id);
         $this->assertSame('Jordan Prospect', $lead->name);
         $this->assertSame('jordan@example.test', $lead->email);
+        $this->assertSame('Austin', $lead->city);
+        $this->assertSame('Requested a product walkthrough.', $lead->remarks);
         $this->assertNotSame('2000-01-01 00:00:00', $lead->created_at->toDateTimeString());
+
+        $this->get(route('leads.index'))
+            ->assertOk()
+            ->assertSee('Austin')
+            ->assertSee('Requested a product walkthrough.');
+        $this->get(route('leads.show', $lead))
+            ->assertOk()
+            ->assertSee('Austin')
+            ->assertSee('Requested a product walkthrough.');
     }
 
     public function test_lead_validation_errors_render_the_shared_alert_and_invalid_field_state(): void
@@ -54,7 +68,13 @@ class CrmHardeningTest extends TestCase
         $this->from(route('leads.create'))
             ->post(route('leads.store'), [
                 'name' => 'A',
+                'company_name' => 'Validation Company',
+                'email' => 'validation@example.test',
+                'phone' => '+1 (555) 555-0101',
+                'source' => 'Website',
                 'status' => 'new',
+                'city' => 'Austin',
+                'remarks' => 'Keep this remark.',
             ])
             ->assertRedirect(route('leads.create'))
             ->assertSessionHasErrors('name');
@@ -64,7 +84,45 @@ class CrmHardeningTest extends TestCase
             ->assertSee('crm-validation-alert', false)
             ->assertSee('aria-invalid="true"', false)
             ->assertSee('aria-describedby="crm-error-name"', false)
+            ->assertSee('value="Austin"', false)
+            ->assertSee('Keep this remark.', false)
             ->assertSee('crm-field-error', false);
+    }
+
+    public function test_lead_core_fields_are_required_and_city_and_remarks_are_limited(): void
+    {
+        $this->actingAs(User::factory()->create());
+
+        $this->post(route('leads.store'), [
+            'name' => 'Required fields prospect',
+            'status' => 'new',
+        ])->assertSessionHasErrors(['company_name', 'email', 'phone', 'source']);
+
+        $validLead = [
+            'name' => 'Bounded fields prospect',
+            'company_name' => 'Bounded Company',
+            'email' => 'bounded@example.test',
+            'phone' => '+1 (555) 555-0115',
+            'source' => 'Website',
+            'status' => 'new',
+        ];
+
+        $this->from(route('leads.create'))
+            ->post(route('leads.store'), $validLead + [
+                'city' => str_repeat('C', 101),
+                'remarks' => str_repeat('R', 1001),
+            ])
+            ->assertSessionHasErrors(['city', 'remarks']);
+
+        $lead = Lead::create([
+            'name' => 'Update required fields prospect',
+            'status' => 'new',
+        ]);
+
+        $this->put(route('leads.update', $lead), [
+            'name' => 'Updated prospect',
+            'status' => 'qualified',
+        ])->assertSessionHasErrors(['company_name', 'email', 'phone', 'source']);
     }
 
     public function test_lead_email_is_unique_on_create_and_update_without_blocking_self_update(): void
@@ -84,21 +142,30 @@ class CrmHardeningTest extends TestCase
         $this->from(route('leads.create'))
             ->post(route('leads.store'), [
                 'name' => 'Duplicate Prospect',
+                'company_name' => 'Duplicate Company',
                 'email' => ' FIRST@example.test ',
+                'phone' => '+1 (555) 555-0102',
+                'source' => 'Website',
                 'status' => 'new',
             ])
             ->assertSessionHasErrors('email');
 
         $this->put(route('leads.update', $firstLead), [
             'name' => 'First Prospect Updated',
+            'company_name' => 'First Company',
             'email' => 'first@example.test',
+            'phone' => '+1 (555) 555-0103',
+            'source' => 'Website',
             'status' => 'qualified',
         ])->assertRedirect(route('leads.index'));
 
         $this->from(route('leads.edit', $secondLead))
             ->put(route('leads.update', $secondLead), [
                 'name' => 'Second Prospect',
+                'company_name' => 'Second Company',
                 'email' => 'first@example.test',
+                'phone' => '+1 (555) 555-0104',
+                'source' => 'Referral',
                 'status' => 'new',
             ])
             ->assertSessionHasErrors('email');
