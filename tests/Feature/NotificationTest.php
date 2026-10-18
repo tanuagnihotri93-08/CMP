@@ -5,7 +5,10 @@ namespace Tests\Feature;
 use App\Models\Lead;
 use App\Models\Role;
 use App\Models\User;
+use App\Notifications\CrmRecordNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Notifications\SendQueuedNotifications;
+use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
 
 class NotificationTest extends TestCase
@@ -123,6 +126,26 @@ class NotificationTest extends TestCase
 
         $this->assertNull($notification->fresh()->read_at);
         $this->assertSame(0, $otherUser->fresh()->notifications()->count());
+    }
+
+    public function test_crm_notifications_are_queued_after_commit_with_bounded_retries(): void
+    {
+        Queue::fake();
+        $recipient = $this->userWithRole('employee');
+
+        $recipient->notify(new CrmRecordNotification(
+            'Lead assigned',
+            'A lead is ready for you.',
+            'leads',
+            123
+        ));
+
+        Queue::assertPushed(SendQueuedNotifications::class, function (SendQueuedNotifications $job): bool {
+            return $job->tries === 3
+                && $job->timeout === 60
+                && $job->backoff() === [10, 60]
+                && $job->afterCommit === true;
+        });
     }
 
     private function userWithRole(string $roleName): User

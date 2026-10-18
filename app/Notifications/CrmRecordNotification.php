@@ -5,13 +5,19 @@ declare(strict_types=1);
 namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
-use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Contracts\Queue\ShouldQueueAfterCommit;
 use Illuminate\Notifications\Messages\BroadcastMessage;
 use Illuminate\Notifications\Notification;
 
-class CrmRecordNotification extends Notification implements ShouldQueue
+class CrmRecordNotification extends Notification implements ShouldQueueAfterCommit
 {
     use Queueable;
+
+    public int $tries = 3;
+
+    public int $timeout = 60;
+
+    public array $backoff = [10, 60];
 
     public function __construct(
         private readonly string $title,

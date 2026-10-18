@@ -2,6 +2,109 @@ import './bootstrap';
 import Swal from 'sweetalert2';
 import 'sweetalert2/dist/sweetalert2.min.css';
 
+const themeToggle = document.querySelector('.crm-theme-toggle');
+const chartThemeSnapshots = new WeakMap();
+const getChartPalette = () => {
+    const styles = getComputedStyle(document.documentElement);
+    const series = [
+        ['--crm-chart-blue', '37, 99, 235'],
+        ['--crm-chart-cyan', '6, 182, 212'],
+        ['--crm-chart-green', '16, 185, 129'],
+        ['--crm-chart-amber', '245, 158, 11'],
+    ];
+
+    return series.map(([name, rgb]) => ({
+        color: styles.getPropertyValue(name).trim() || `rgb(${rgb})`,
+        fill: `rgba(${rgb}, .16)`,
+    }));
+};
+
+const updateChartTheme = (theme) => {
+    const charts = window.Chart?.instances;
+    if (!charts) {
+        return;
+    }
+
+    const chartPalette = getChartPalette();
+
+    Object.values(charts).forEach((chart) => {
+        if (!chartThemeSnapshots.has(chart)) {
+            chartThemeSnapshots.set(chart, {
+                datasets: chart.data.datasets.map((dataset) => ({
+                    backgroundColor: dataset.backgroundColor,
+                    borderColor: dataset.borderColor,
+                })),
+                ticks: Object.fromEntries(Object.entries(chart.options.scales || {}).map(([axis, options]) => [axis, options.ticks?.color])),
+                grids: Object.fromEntries(Object.entries(chart.options.scales || {}).map(([axis, options]) => [axis, options.grid?.color])),
+                legend: chart.options.plugins?.legend?.labels?.color,
+            });
+        }
+
+        const original = chartThemeSnapshots.get(chart);
+
+        if (theme === 'dark') {
+            chart.data.datasets.forEach((dataset, index) => {
+                dataset.backgroundColor = original.datasets[index]?.backgroundColor;
+                dataset.borderColor = original.datasets[index]?.borderColor;
+            });
+            Object.entries(chart.options.scales || {}).forEach(([axis, options]) => {
+                options.ticks.color = original.ticks[axis];
+                options.grid.color = original.grids[axis];
+            });
+            if (chart.options.plugins?.legend?.labels) {
+                chart.options.plugins.legend.labels.color = original.legend;
+            }
+        } else {
+            chart.data.datasets.forEach((dataset, index) => {
+                const palette = chartPalette[index % chartPalette.length];
+                dataset.backgroundColor = Array.isArray(original.datasets[index]?.backgroundColor)
+                    ? Array.from({ length: original.datasets[index].backgroundColor.length || chart.data.labels?.length || chartPalette.length }, (_, colorIndex) => chartPalette[colorIndex % chartPalette.length].color)
+                    : palette.fill;
+                dataset.borderColor = chart.config.type === 'doughnut' || chart.config.type === 'pie'
+                    ? '#FFFFFF'
+                    : palette.color;
+            });
+            Object.values(chart.options.scales || {}).forEach((options) => {
+                options.ticks.color = '#64748B';
+                options.grid.color = 'rgba(148, 163, 184, .24)';
+            });
+            if (chart.options.plugins?.legend?.labels) {
+                chart.options.plugins.legend.labels.color = '#475569';
+            }
+        }
+
+        chart.update('none');
+    });
+};
+
+const setTheme = (theme) => {
+    const normalizedTheme = theme === 'light' ? 'light' : 'dark';
+    document.documentElement.dataset.theme = normalizedTheme;
+
+    try {
+        localStorage.setItem('crm-theme', normalizedTheme);
+    } catch (error) {
+        // Keep the current session theme active when browser storage is unavailable.
+    }
+
+    if (themeToggle) {
+        const isLight = normalizedTheme === 'light';
+        themeToggle.setAttribute('aria-pressed', String(isLight));
+        themeToggle.setAttribute('aria-label', `Switch to ${isLight ? 'dark' : 'light'} theme`);
+        themeToggle.title = `Switch to ${isLight ? 'dark' : 'light'} theme`;
+        themeToggle.innerHTML = `<i class="bi bi-${isLight ? 'moon-stars' : 'sun'}" aria-hidden="true"></i>`;
+    }
+
+    updateChartTheme(normalizedTheme);
+};
+
+themeToggle?.addEventListener('click', () => {
+    setTheme(document.documentElement.dataset.theme === 'light' ? 'dark' : 'light');
+});
+
+setTheme(document.documentElement.dataset.theme || 'dark');
+document.addEventListener('DOMContentLoaded', () => updateChartTheme(document.documentElement.dataset.theme || 'dark'));
+
 const mobileNavigation = window.matchMedia('(max-width: 620px)');
 const compactNavigation = window.matchMedia('(min-width: 621px) and (max-width: 1024px)');
 const sidebar = document.getElementById('crm-sidebar');
@@ -251,3 +354,214 @@ document.querySelectorAll('[data-crm-card-filter]').forEach((filterCard) => {
     search.addEventListener('input', filterRows);
     role.addEventListener('change', filterRows);
 });
+
+/* =========================================
+   GLOBAL FOLLOW-UP REMINDER POPUP LISTENER
+   Appears on every CRM page via broadcast
+========================================= */
+
+const body = document.querySelector('body');
+const userId = body?.dataset?.userId;
+
+if (userId && window.Echo) {
+    window.Echo.private(`App.Models.User.${userId}`)
+        .listen('.Illuminate\\Notifications\\Events\\NotificationCreated', (e) => {
+            const notification = e.notification ?? e;
+            const isReminder = notification.type === 'reminder'
+                || (notification.data && notification.data.type === 'reminder')
+                || (notification.data && notification.data.module === 'follow_ups' && notification.data.type === 'reminder');
+
+            if (!isReminder) {
+                return;
+            }
+
+            Swal.fire({
+                title: notification.data?.title ?? 'Follow Up Reminder',
+                html: notification.data?.message ?? 'You have a follow up scheduled.',
+                icon: 'warning',
+                confirmButtonText: notification.data?.action_url ? 'View Follow Up' : 'Dismiss',
+                cancelButtonText: 'Dismiss',
+                showCancelButton: true,
+                timer: 30000,
+                timerProgressBar: true,
+                allowOutsideClick: false,
+                allowEscapeKey: true,
+                showConfirmButton: true,
+                customClass: {
+                    container: 'followup-reminder-swal-container',
+                    popup: 'followup-reminder-swal-popup',
+                    title: 'followup-reminder-swal-title',
+                    htmlContainer: 'followup-reminder-swal-html',
+                    confirmButton: 'followup-reminder-swal-confirm',
+                    cancelButton: 'followup-reminder-swal-cancel',
+                },
+            }).then((result) => {
+                if (result.isConfirmed && notification.data?.action_url) {
+                    window.location.href = notification.data.action_url;
+                }
+            });
+        });
+}
+
+/* =========================================
+   GLOBAL EMERGENCY FOLLOW-UP ALERT LISTENER
+   Red overlay + hooter sound + CONFIRM button
+   Appears on every CRM page via broadcast
+========================================= */
+
+let emergencySound = null;
+
+function playEmergencySound() {
+    if (emergencySound) {
+        return;
+    }
+
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) {
+        return;
+    }
+
+    const audioCtx = new AudioContext();
+    const now = audioCtx.currentTime;
+
+    // Emergency hooter: alternating high/low beep pattern, 3 cycles, no infinite loop
+    const beep = (startTime, freq, duration) => {
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.type = 'square';
+        osc.frequency.setValueAtTime(freq, startTime);
+        gain.setValueAtTime(0.08, startTime);
+        gain.linearRampToValueAtTime(0, startTime + duration);
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+        osc.start(startTime);
+        osc.stop(startTime + duration);
+    };
+
+    const cycleDuration = 0.4;
+    for (let i = 0; i < 3; i++) {
+        const t = now + i * cycleDuration;
+        beep(t, 880, 0.25);   // high beep
+        beep(t + 0.25, 440, 0.15); // low beep
+    }
+
+    emergencySound = { audioCtx };
+
+    // Auto-stop after 30 seconds (safety)
+    setTimeout(() => {
+        try {
+            audioCtx.close();
+        } catch (e) { /* ignore */ }
+        emergencySound = null;
+    }, 30000);
+}
+
+function stopEmergencySound() {
+    if (emergencySound) {
+        try {
+            emergencySound.audioCtx.close();
+        } catch (e) { /* ignore */ }
+        emergencySound = null;
+    }
+}
+
+function getConfirmedEmergencyIds() {
+    try {
+        const raw = sessionStorage.getItem('crm_emergency_confirmed');
+        return raw ? JSON.parse(raw) : [];
+    } catch (e) {
+        return [];
+    }
+}
+
+function addConfirmedEmergencyId(followUpId) {
+    const ids = getConfirmedEmergencyIds();
+    if (!ids.includes(followUpId)) {
+        ids.push(followUpId);
+        try {
+            sessionStorage.setItem('crm_emergency_confirmed', JSON.stringify(ids));
+        } catch (e) { /* ignore */ }
+    }
+}
+
+function showEmergencyAlert(data) {
+    const followUpId = data?.follow_up_id ?? null;
+
+    // Prevent re-showing already confirmed emergency
+    if (followUpId && getConfirmedEmergencyIds().includes(followUpId)) {
+        return;
+    }
+
+    playEmergencySound();
+
+    const container = document.getElementById('emergency-alert-container');
+    if (!container) {
+        return;
+    }
+
+    const leadName = data?.lead_id ? `Lead #${data.lead_id}` : 'Unknown Lead';
+    const title = data?.title ?? 'Emergency Follow Up Alert';
+    const message = data?.message ?? 'You have an urgent follow up scheduled.';
+    const type = data?.type ?? 'Follow Up';
+    const scheduledAt = data?.scheduled_at ? new Date(data.scheduled_at).toLocaleString() : 'Not set';
+    const remark = data?.remark ?? null;
+    const actionUrl = data?.action_url ?? null;
+
+    const html = `
+        <div class="emergency-alert-card" role="alertdialog" aria-modal="true" aria-label="Emergency Follow Up Alert">
+            <span class="emergency-alert-icon"><i class="bi bi-bell-fill"></i></span>
+            <h2 class="emergency-alert-title"><i class="bi bi-exclamation-triangle-fill"></i> ${title}</h2>
+            <p class="emergency-alert-body">${message}</p>
+            <div class="emergency-alert-detail"><i class="bi bi-person-fill"></i> ${leadName}</div>
+            <div class="emergency-alert-detail"><i class="bi bi-telephone-outbound-fill"></i> ${type}</div>
+            <div class="emergency-alert-detail"><i class="bi bi-clock-fill"></i> ${scheduledAt}</div>
+            ${remark ? `<div class="emergency-alert-detail"><i class="bi bi-chat-right-text-fill"></i> ${remark}</div>` : ''}
+            <div class="emergency-alert-actions">
+                <button class="emergency-alert-btn-confirm" id="emergency-alert-confirm-btn">CONFIRM</button>
+            </div>
+        </div>
+    `;
+
+    container.innerHTML = html;
+    container.style.display = 'flex'; // Fix: Ensures display layout and popup visibility alongside overlay blur
+    container.classList.remove('hidden');
+
+    const confirmBtn = document.getElementById('emergency-alert-confirm-btn');
+    const hideAlert = () => {
+        stopEmergencySound();
+        container.classList.add('hidden');
+        container.style.display = 'none'; // Fix: Completely resets display to avoid phantom blur layer
+        container.innerHTML = '';
+        if (followUpId) {
+            addConfirmedEmergencyId(followUpId);
+        }
+    };
+
+    confirmBtn.addEventListener('click', hideAlert);
+
+    // Auto-dismiss after 45 seconds (sound auto-stops at 30s)
+    setTimeout(() => {
+        if (!container.classList.contains('hidden')) {
+            hideAlert();
+        }
+    }, 45000);
+}
+
+const emergencyBody = document.querySelector('body');
+const emergencyUserId = emergencyBody?.dataset?.userId;
+
+if (emergencyUserId && window.Echo) {
+    window.Echo.private(`App.Models.User.${emergencyUserId}`)
+        .listen('.Illuminate\\Notifications\\Events\\NotificationCreated', (e) => {
+            const notification = e.notification ?? e;
+            const data = notification.data ?? notification;
+            const isEmergency = data?.urgency === 'emergency'
+                || (notification.urgency === 'emergency');
+
+            if (!isEmergency) {
+                return;
+            }
+
+            showEmergencyAlert(data);
+        });
+}

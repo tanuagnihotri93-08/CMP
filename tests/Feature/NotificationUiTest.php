@@ -72,6 +72,31 @@ class NotificationUiTest extends TestCase
         $this->assertSame(0, $user->fresh()->unreadNotifications()->count());
     }
 
+    public function test_unsafe_notification_destinations_fall_back_to_the_previous_page(): void
+    {
+        $user = $this->userWithRole('employee');
+        $dashboard = route('dashboard');
+
+        foreach ([
+            'https://attacker.example/phish',
+            '//attacker.example/phish',
+            'javascript:alert(1)',
+        ] as $actionUrl) {
+            $notification = $user->notifications()->create([
+                'id' => (string) Str::uuid(),
+                'type' => 'App\\Notifications\\CrmRecordNotification',
+                'data' => ['action_url' => $actionUrl],
+            ]);
+
+            $this->actingAs($user)
+                ->from('https://attacker.example/phish')
+                ->post(route('notifications.read', $notification->id))
+                ->assertRedirect($dashboard);
+
+            $this->assertNotNull($notification->fresh()->read_at);
+        }
+    }
+
     private function userWithRole(string $roleName): User
     {
         $user = User::factory()->create();

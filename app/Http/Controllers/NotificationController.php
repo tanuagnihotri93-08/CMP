@@ -30,10 +30,11 @@ class NotificationController extends Controller
             ]);
         }
 
-        // Agar notification data mein action_url diya ho toh wahan redirect karein, warna pichle page par
         $actionUrl = $notif->data['action_url'] ?? null;
+        $destination = $this->safeActionUrl($actionUrl);
+        $fallback = $this->safeActionUrl(url()->previous()) ?? route('dashboard');
 
-        return $actionUrl ? redirect($actionUrl) : back();
+        return redirect()->to($destination ?? $fallback);
     }
 
     /**
@@ -91,5 +92,39 @@ class NotificationController extends Controller
         }
 
         return back();
+    }
+
+    private function safeActionUrl(mixed $actionUrl): ?string
+    {
+        if (! is_string($actionUrl) || $actionUrl === '' || preg_match('/[\x00-\x1F\x7F\\\\]/', $actionUrl)) {
+            return null;
+        }
+
+        if (str_starts_with($actionUrl, '/') && ! str_starts_with($actionUrl, '//')) {
+            return $actionUrl;
+        }
+
+        $destination = parse_url($actionUrl);
+        $application = parse_url((string) config('app.url'));
+
+        if (! is_array($destination) || ! is_array($application)
+            || isset($destination['user']) || isset($destination['pass'])
+            || ! isset($destination['scheme'], $destination['host'], $application['scheme'], $application['host'])) {
+            return null;
+        }
+
+        $port = static fn (array $url): ?int => $url['port'] ?? match (strtolower($url['scheme'])) {
+            'http' => 80,
+            'https' => 443,
+            default => null,
+        };
+
+        if (strtolower($destination['scheme']) !== strtolower($application['scheme'])
+            || strtolower($destination['host']) !== strtolower($application['host'])
+            || $port($destination) !== $port($application)) {
+            return null;
+        }
+
+        return $actionUrl;
     }
 }
