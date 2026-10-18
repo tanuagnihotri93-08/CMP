@@ -148,30 +148,40 @@ class CustomerController extends Controller
 
     public function show(string $id)
     {
-        $customer = Customer::with(['activities.lead', 'lead.followUps' => function ($query) {
-            $query->orderByDesc('date');
-        }])->findOrFail($id);
+        $customer = Customer::with('lead')->findOrFail($id);
 
         abort_unless(request()->user()->canAccessRecord($customer), 404);
         if ($customer->lead && ! request()->user()->canAccessRecord($customer->lead)) {
             $customer->setRelation('lead', null);
-        } elseif ($customer->lead) {
-            $customer->lead->setRelation(
-                'followUps',
-                $customer->lead->followUps->filter(
-                    fn ($followUp) => request()->user()->canAccessRecord($followUp)
-                )
-            );
         }
-        $customer->setRelation(
-            'activities',
-            $customer->activities->filter(fn ($activity) => request()->user()->canAccessRecord($activity))
-        );
+
+        $activities = request()->user()
+            ->constrainToAssignedRecords($customer->activities()->getQuery())
+            ->with('lead')
+            ->orderByDesc('activity_date')
+            ->orderByDesc('id')
+            ->paginate(10, ['activities.*'], 'activities_page')
+            ->withQueryString();
+        $activities->each(function ($activity): void {
+            if ($activity->lead && ! request()->user()->canAccessRecord($activity->lead)) {
+                $activity->setRelation('lead', null);
+            }
+        });
+
+        $followUps = null;
+        if ($customer->lead) {
+            $followUps = request()->user()
+                ->constrainToAssignedRecords($customer->lead->followUps()->getQuery())
+                ->orderByDesc('date')
+                ->orderByDesc('id')
+                ->paginate(10, ['follow_ups.*'], 'follow_ups_page')
+                ->withQueryString();
+        }
 
         $timeline = app(ActivityTimeline::class)
             ->forCustomer($customer, request()->user());
 
-        return view('customers.show', compact('customer', 'timeline'));
+        return view('customers.show', compact('customer', 'timeline', 'activities', 'followUps'));
     }
 
     public function edit(string $id)
@@ -190,12 +200,29 @@ class CustomerController extends Controller
     public function update(Request $request, string $id)
     {
         $customer = Customer::findOrFail($id);
+        abort_unless($request->user()->canAccessRecord($customer), 404);
+
         $validated = $this->validateCustomer($request, $customer);
-        if ($customer->lead) {
+
+        $lead = ! empty($validated['lead_id'])
+            ? Lead::findOrFail($validated['lead_id'])
+            : $customer->lead;
+
+        if (! empty($validated['lead_id'])) {
+            abort_unless($request->user()->canAccessRecord($lead), 404);
+
+            if ($lead->status !== 'won') {
+                return back()
+                    ->withInput()
+                    ->withErrors(['lead_id' => 'Only won leads can be converted to customers.']);
+            }
+        }
+
+        if ($lead) {
             $this->ensureAssigneeCanAccess(
                 $request,
                 $validated,
-                $customer->lead,
+                $lead,
                 $customer->assigned_to_user_id
             );
         }

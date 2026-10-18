@@ -9,11 +9,13 @@ class Lead extends Model
     protected $fillable = [
         'name',
         'company_name',
+        'city',
         'email',
         'phone',
         'source',
         'status',
         'notes',
+        'remarks',
         'assigned_to_user_id',
     ];
 

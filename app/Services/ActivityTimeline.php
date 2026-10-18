@@ -20,15 +20,13 @@ class ActivityTimeline
         if ($viewer->hasPermission('activities.view')) {
             $records[Activity::class] = $viewer
                 ->constrainToAssignedRecords($lead->activities()->getQuery())
-                ->pluck('activities.id')
-                ->all();
+                ->select('activities.id');
         }
 
         if ($viewer->hasPermission('follow_ups.view')) {
             $records[FollowUp::class] = $viewer
                 ->constrainToAssignedRecords($lead->followUps()->getQuery())
-                ->pluck('follow_ups.id')
-                ->all();
+                ->select('follow_ups.id');
         }
 
         $customer = $lead->relationLoaded('customer') ? $lead->getRelation('customer') : null;
@@ -50,8 +48,7 @@ class ActivityTimeline
         if ($viewer->hasPermission('activities.view')) {
             $records[Activity::class] = $viewer
                 ->constrainToAssignedRecords($customer->activities()->getQuery())
-                ->pluck('activities.id')
-                ->all();
+                ->select('activities.id');
         }
 
         $lead = $customer->relationLoaded('lead') ? $customer->getRelation('lead') : null;
@@ -65,8 +62,7 @@ class ActivityTimeline
             if ($viewer->hasPermission('follow_ups.view')) {
                 $records[FollowUp::class] = $viewer
                     ->constrainToAssignedRecords($lead->followUps()->getQuery())
-                    ->pluck('follow_ups.id')
-                    ->all();
+                    ->select('follow_ups.id');
             }
         }
 
@@ -74,11 +70,14 @@ class ActivityTimeline
     }
 
     /**
-     * @param  array<class-string, array<int, int|string>>  $records
+     * @param  array<class-string, array<int, int|string>|Builder>  $records
      */
     private function paginateEvents(array $records): LengthAwarePaginator
     {
-        $records = array_filter($records, fn (array $ids) => $ids !== []);
+        $records = array_filter(
+            $records,
+            fn (array|Builder $ids) => ! is_array($ids) || $ids !== []
+        );
 
         return AuditLog::query()
             ->where(function (Builder $query) use ($records): void {

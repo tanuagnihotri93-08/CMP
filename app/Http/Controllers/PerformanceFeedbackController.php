@@ -6,6 +6,8 @@ use App\Models\PerformanceFeedback;
 use App\Models\User;
 use App\Notifications\PerformanceFeedbackNotification;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class PerformanceFeedbackController extends Controller
 {
@@ -39,7 +41,7 @@ class PerformanceFeedbackController extends Controller
             $query->where('receiver_id', $user->id);
         }
 
-        $feedbacks = $query->get();
+        $feedbacks = $query->paginate(25)->withQueryString();
 
         return view('performance-feedback.index', compact('feedbacks'));
     }
@@ -52,7 +54,9 @@ class PerformanceFeedbackController extends Controller
 
         $users = User::where('is_active', true)
             ->whereHas('role', fn ($q) => $q->whereIn('name', $allowedRoles))
-            ->get();
+            ->select(['id', 'name'])
+            ->orderBy('id')
+            ->lazy(500);
 
         return view('performance-feedback.create', compact('users'));
     }
@@ -64,8 +68,12 @@ class PerformanceFeedbackController extends Controller
         abort_if(empty($allowedRoles), 403);
 
         $validated = $request->validate([
-            'receiver_id' => ['required', 'exists:users,id'],
-            'message' => ['required', 'string', 'max:2000'],
+            'receiver_id' => [
+                'required',
+                'integer',
+                Rule::exists('users', 'id')->where('is_active', true),
+            ],
+            'message' => ['required', 'string', 'min:2', 'max:2000'],
             'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
         ]);
 
@@ -76,15 +84,17 @@ class PerformanceFeedbackController extends Controller
 
         abort_unless($receiverAllowed, 403);
 
-        $feedback = PerformanceFeedback::create([
-            'sender_id' => auth()->id(),
-            'receiver_id' => $validated['receiver_id'],
-            'message' => $validated['message'],
-            'rating' => $validated['rating'] ?? null,
-            'status' => 'Open',
-        ]);
+        DB::transaction(function () use ($validated): void {
+            $feedback = PerformanceFeedback::create([
+                'sender_id' => auth()->id(),
+                'receiver_id' => $validated['receiver_id'],
+                'message' => $validated['message'],
+                'rating' => $validated['rating'] ?? null,
+                'status' => 'Open',
+            ]);
 
-        $feedback->receiver->notify(new PerformanceFeedbackNotification($feedback));
+            $feedback->receiver->notify(new PerformanceFeedbackNotification($feedback));
+        }, attempts: 3);
 
         return redirect()
             ->route('performance-feedback.index')
@@ -102,7 +112,7 @@ class PerformanceFeedbackController extends Controller
         abort_unless($canUpdate, 403);
 
         $validated = $request->validate([
-            'status' => ['required', 'in:Open,Reviewed'],
+            'status' => ['required', Rule::in(['Open', 'Reviewed'])],
         ]);
 
         $feedback->update(['status' => $validated['status']]);

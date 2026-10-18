@@ -8,6 +8,7 @@ use App\Models\Role;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -33,46 +34,58 @@ class UserManagementController extends Controller
         $newRole = Role::findOrFail($validated['role_id']);
         $willBeActive = (bool) $validated['is_active'];
 
-        if ($user->role?->name === 'super_admin' && ($newRole->name !== 'super_admin' || ! $willBeActive)) {
-            $remainingAdmins = User::whereHas('role', fn ($query) => $query->where('name', 'super_admin'))
+        DB::transaction(function () use ($user, $newRole, $willBeActive): void {
+            // Lock the active administrator set in a consistent order so concurrent
+            // role changes cannot both pass the last-admin check.
+            $activeSuperAdmins = User::query()
                 ->where('is_active', true)
-                ->whereKeyNot($user->id)
-                ->exists();
-            abort_unless($remainingAdmins, 422, 'At least one active Super Admin must remain.');
-        }
+                ->whereHas('role', fn ($query) => $query->where('name', 'super_admin'))
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get(['id']);
 
-        $oldRole = $user->role;
-        $oldActive = (bool) $user->is_active;
+            $lockedUser = User::query()->lockForUpdate()->findOrFail($user->id);
+            $oldRole = $lockedUser->role;
+            $oldActive = (bool) $lockedUser->is_active;
 
-        $user->forceFill([
-            'role_id' => $newRole->id,
-            'is_admin' => $newRole->name === 'super_admin',
-            'is_active' => $willBeActive,
-        ])->save();
+            if ($oldRole?->name === 'super_admin' && ($newRole->name !== 'super_admin' || ! $willBeActive)) {
+                $hasAnotherActiveAdmin = $activeSuperAdmins->contains(
+                    fn (User $admin): bool => (int) $admin->id !== (int) $lockedUser->id
+                );
 
-        if ($oldRole?->id !== $newRole->id) {
-            AuditLog::record(
-                'role_changed',
-                'users',
-                User::class,
-                (int) $user->id,
-                "Role changed for {$user->name}.",
-                ['role' => $oldRole?->name],
-                ['role' => $newRole->name]
-            );
-        }
+                abort_unless($hasAnotherActiveAdmin, 422, 'At least one active Super Admin must remain.');
+            }
 
-        if ($oldActive !== $willBeActive) {
-            AuditLog::record(
-                $willBeActive ? 'activated' : 'deactivated',
-                'users',
-                User::class,
-                (int) $user->id,
-                "User {$user->name} was ".($willBeActive ? 'activated' : 'deactivated').'.',
-                ['is_active' => $oldActive],
-                ['is_active' => $willBeActive]
-            );
-        }
+            $lockedUser->forceFill([
+                'role_id' => $newRole->id,
+                'is_admin' => $newRole->name === 'super_admin',
+                'is_active' => $willBeActive,
+            ])->save();
+
+            if ($oldRole?->id !== $newRole->id) {
+                AuditLog::record(
+                    'role_changed',
+                    'users',
+                    User::class,
+                    (int) $lockedUser->id,
+                    "Role changed for {$lockedUser->name}.",
+                    ['role' => $oldRole?->name],
+                    ['role' => $newRole->name]
+                );
+            }
+
+            if ($oldActive !== $willBeActive) {
+                AuditLog::record(
+                    $willBeActive ? 'activated' : 'deactivated',
+                    'users',
+                    User::class,
+                    (int) $lockedUser->id,
+                    "User {$lockedUser->name} was ".($willBeActive ? 'activated' : 'deactivated').'.',
+                    ['is_active' => $oldActive],
+                    ['is_active' => $willBeActive]
+                );
+            }
+        }, attempts: 3);
 
         return redirect()
             ->route('admin.users.index')

@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\AuditLog;
 use App\Models\User;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Validation\Rule;
 use Illuminate\View\View;
 
@@ -34,8 +35,8 @@ class AuditLogController extends Controller
             })
             ->when($filters['module'] ?? null, fn ($query, string $module) => $query->where('module', $module))
             ->when($filters['user_id'] ?? null, fn ($query, int $userId) => $query->where('user_id', $userId))
-            ->when($filters['date_from'] ?? null, fn ($query, string $date) => $query->whereDate('created_at', '>=', $date))
-            ->when($filters['date_to'] ?? null, fn ($query, string $date) => $query->whereDate('created_at', '<=', $date))
+            ->when($filters['date_from'] ?? null, fn ($query, string $date) => $query->where('created_at', '>=', $date.' 00:00:00'))
+            ->when($filters['date_to'] ?? null, fn ($query, string $date) => $query->where('created_at', '<', Carbon::parse($date)->addDay()->toDateString()))
             ->latest()
             ->paginate(25)
             ->withQueryString();

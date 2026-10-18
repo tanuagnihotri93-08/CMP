@@ -3,8 +3,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Project;
+use App\Models\Task;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class ProjectController extends Controller
 {
@@ -12,15 +14,32 @@ class ProjectController extends Controller
     {
         $user = Auth::user();
 
-        $query = Project::with('creator')
-            ->withCount('tasks');
+        abort_unless($user->hasPermission('projects.view'), 403);
 
-        if ($user->role?->name === 'super_admin' || $user->role?->name === 'manager') {
-        } else {
-            $query->whereHas('tasks', function ($q) use ($user) {
+        $isTeamViewer = in_array($user->role?->name, ['super_admin', 'manager'], true);
+        $visibleProjects = Project::query();
+
+        if (! $isTeamViewer) {
+            $visibleProjects->whereHas('tasks', function ($q) use ($user) {
                 $q->where('assigned_to', $user->id);
             });
+        }
 
+        $projectCounts = (clone $visibleProjects)
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
+        $totalProjectTasks = Task::query()
+            ->whereIn('project_id', (clone $visibleProjects)->select('projects.id'))
+            ->when(! $isTeamViewer, fn ($tasks) => $tasks->where('assigned_to', $user->id))
+            ->count();
+
+        $query = (clone $visibleProjects)
+            ->with('creator')
+            ->withCount('tasks');
+
+        if (! $isTeamViewer) {
             $query->withCount([
                 'tasks' => function ($q) use ($user) {
                     $q->where('assigned_to', $user->id);
@@ -32,7 +51,11 @@ class ProjectController extends Controller
             ->latest()
             ->paginate(10);
 
-        return view('projects.index', compact('projects'));
+        return view('projects.index', compact('projects') + [
+            'totalProjects' => $projectCounts->sum(),
+            'activeProjects' => $projectCounts->get('Active', 0),
+            'totalProjectTasks' => $totalProjectTasks,
+        ]);
     }
 
     public function create()
@@ -53,12 +76,12 @@ class ProjectController extends Controller
         );
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
+            'name' => ['required', 'string', 'min:2', 'max:255'],
+            'description' => ['nullable', 'string', 'max:5000'],
             'client_name' => ['nullable', 'string', 'max:255'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'status' => ['required', 'in:Planning,Active,Completed,Cancelled'],
+            'start_date' => ['nullable', 'date_format:Y-m-d'],
+            'end_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+            'status' => ['required', Rule::in(['Planning', 'Active', 'Completed', 'Cancelled'])],
         ]);
 
         $validated['created_by'] = Auth::id();
@@ -72,14 +95,22 @@ class ProjectController extends Controller
 
     public function show(Project $project)
     {
+        $user = Auth::user();
+        abort_unless($user->hasPermission('projects.view'), 403);
+
         $this->checkProjectAccess($project);
 
-        $project->load([
-            'creator',
-            'tasks.assignedUser',
-        ]);
+        $project->load('creator');
+        $isTeamViewer = in_array($user->role?->name, ['super_admin', 'manager'], true);
+        $tasks = $project->tasks()
+            ->when(! $isTeamViewer, fn ($query) => $query->where('assigned_to', $user->id))
+            ->with('assignedUser')
+            ->latest()
+            ->orderByDesc('id')
+            ->paginate(25)
+            ->withQueryString();
 
-        return view('projects.show', compact('project'));
+        return view('projects.show', compact('project', 'tasks'));
     }
 
     public function edit(Project $project)
@@ -94,12 +125,12 @@ class ProjectController extends Controller
         $this->checkManagePermission($project, 'update');
 
         $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string'],
+            'name' => ['required', 'string', 'min:2', 'max:255'],
+            'description' => ['nullable', 'string', 'max:5000'],
             'client_name' => ['nullable', 'string', 'max:255'],
-            'start_date' => ['nullable', 'date'],
-            'end_date' => ['nullable', 'date', 'after_or_equal:start_date'],
-            'status' => ['required', 'in:Planning,Active,Completed,Cancelled'],
+            'start_date' => ['nullable', 'date_format:Y-m-d'],
+            'end_date' => ['nullable', 'date_format:Y-m-d', 'after_or_equal:start_date'],
+            'status' => ['required', Rule::in(['Planning', 'Active', 'Completed', 'Cancelled'])],
         ]);
 
         $project->update($validated);
@@ -140,7 +171,7 @@ class ProjectController extends Controller
         );
     }
 
-    private function checkManagePermission(string $action)
+    private function checkManagePermission(Project $project, string $action)
     {
         $user = Auth::user();
 

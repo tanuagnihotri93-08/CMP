@@ -28,14 +28,16 @@ class AnalyticsController extends Controller
 
         $totalCustomers = Customer::count();
 
+        $wonLeads = Lead::where('status', 'won')->count();
+
         $totalActivities = Activity::count();
 
-        $pendingFollowUps = FollowUp::where('status', 'pending')
+        $pendingFollowUps = FollowUp::where('status', 'scheduled')
             ->count();
 
 
         $conversionRate = $totalLeads > 0
-            ? round(($totalCustomers / $totalLeads) * 100, 2)
+            ? round(($wonLeads / $totalLeads) * 100, 2)
             : 0;
 
 
@@ -47,8 +49,12 @@ class AnalyticsController extends Controller
             ->pluck('total', 'status');
 
 
+        $monthExpression = DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(strftime('%m', created_at) AS INTEGER)"
+            : 'MONTH(created_at)';
+
         $monthlyLeads = Lead::select(
-                DB::raw('MONTH(created_at) as month'),
+                DB::raw($monthExpression.' as month'),
                 DB::raw('COUNT(*) as total')
             )
             ->groupBy('month')
@@ -62,6 +68,8 @@ class AnalyticsController extends Controller
             ->withCount([
                 'assignedLeads'
             ])
+            ->orderByDesc('assigned_leads_count')
+            ->orderBy('name')
             ->get();
 
 

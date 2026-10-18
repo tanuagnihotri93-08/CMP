@@ -32,7 +32,7 @@ class LeadController extends Controller
             ->when($search !== '', function ($query) use ($search): void {
                 $term = '%'.$search.'%';
                 $query->where(function ($query) use ($term): void {
-                    foreach (['name', 'email', 'company_name', 'phone', 'source'] as $column) {
+                    foreach (['name', 'email', 'company_name', 'city', 'phone', 'source', 'remarks'] as $column) {
                         $query->orWhere($column, 'like', $term);
                     }
                 });
@@ -84,20 +84,29 @@ class LeadController extends Controller
 
     public function show(string $id)
     {
-        $lead = Lead::with(['customer', 'activities.customer'])->findOrFail($id);
+        $lead = Lead::with('customer')->findOrFail($id);
         abort_unless(request()->user()->canAccessRecord($lead), 404);
         if ($lead->customer && ! request()->user()->canAccessRecord($lead->customer)) {
             $lead->setRelation('customer', null);
         }
-        $lead->setRelation(
-            'activities',
-            $lead->activities->filter(fn ($activity) => request()->user()->canAccessRecord($activity))
-        );
+
+        $activities = request()->user()
+            ->constrainToAssignedRecords($lead->activities()->getQuery())
+            ->with('customer')
+            ->orderByDesc('activity_date')
+            ->orderByDesc('id')
+            ->paginate(10, ['activities.*'], 'activities_page')
+            ->withQueryString();
+        $activities->each(function ($activity): void {
+            if ($activity->customer && ! request()->user()->canAccessRecord($activity->customer)) {
+                $activity->setRelation('customer', null);
+            }
+        });
 
         $timeline = app(ActivityTimeline::class)
             ->forLead($lead, request()->user());
 
-        return view('leads.show', compact('lead', 'timeline'));
+        return view('leads.show', compact('lead', 'timeline', 'activities'));
     }
 
     public function edit(string $id)
@@ -132,6 +141,22 @@ class LeadController extends Controller
             ->with('success', 'Lead updated successfully.');
     }
 
+    public function updateRemarks(Request $request, string $id)
+    {
+        $field = 'remarks.'.$id;
+        $validated = $request->validate([
+            'remarks' => ['required', 'array', 'size:1'],
+            $field => ['present', 'nullable', 'string', 'max:1000'],
+        ]);
+
+        $lead = Lead::findOrFail($id);
+        $lead->update(['remarks' => $validated['remarks'][$id] ?? null]);
+
+        return redirect()
+            ->route('leads.index')
+            ->with('success', 'Lead remarks updated successfully.');
+    }
+
     public function destroy(string $id)
     {
         $lead = Lead::findOrFail($id);
@@ -153,9 +178,11 @@ class LeadController extends Controller
 
         return $request->validate([
             'name' => ['required', 'string', 'min:2', 'max:255'],
-            'company_name' => ['nullable', 'string', 'max:255'],
+            'company_name' => ['required', 'string', 'max:255'],
             'email' => [
-                'nullable',
+                'bail',
+                'required',
+                'string',
                 'email:rfc',
                 'max:255',
                 function ($attribute, $value, $fail) use ($lead) {
@@ -172,14 +199,17 @@ class LeadController extends Controller
                 },
             ],
             'phone' => [
-                'nullable',
+                'bail',
+                'required',
                 'string',
                 'max:20',
                 'regex:/^\\+?(?=(?:\\D*\\d){7,15}\\D*$)[0-9][0-9\\s().-]{5,18}[0-9]$/',
             ],
-            'source' => ['nullable', Rule::in(self::SOURCES)],
+            'source' => ['required', Rule::in(self::SOURCES)],
             'status' => ['required', Rule::in(self::STATUSES)],
             'notes' => ['nullable', 'string', 'max:5000'],
+            'city' => ['nullable', 'string', 'max:100'],
+            'remarks' => ['nullable', 'string', 'max:1000'],
             'assigned_to_user_id' => $request->user()->hasPermission('records.assign')
                 ? ['nullable', 'integer', 'exists:users,id,is_active,1']
                 : ['prohibited'],
@@ -189,7 +219,11 @@ class LeadController extends Controller
     private function assignableUsers()
     {
         return request()->user()->hasPermission('records.assign')
-            ? User::where('is_active', true)->orderBy('name')->get(['id', 'name'])
+            ? User::where('is_active', true)
+                ->select(['id', 'name'])
+                ->orderBy('name')
+                ->orderBy('id')
+                ->cursor()
             : collect();
     }
 }

@@ -53,7 +53,7 @@ class DashboardController extends Controller
             'totalActivities' => $totalActivities,
             'completedActivities' => $completedActivities,
             'conversionRate' => $totalLeads > 0
-                ? round(($wonLeads / $totalLeads) * 100)
+                ? round(($wonLeads / $totalLeads) * 100, 2)
                 : 0,
             'newLeads' => (clone $leads)->where('status', 'new')->count(),
             'proposalLeads' => (clone $leads)->where('status', 'proposal')->count(),

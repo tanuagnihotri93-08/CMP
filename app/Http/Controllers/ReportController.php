@@ -192,7 +192,6 @@ class ReportController extends Controller
 
     private function leadReport(Builder $query): array
     {
-        $total = (clone $query)->count();
         $byStatus = (clone $query)
             ->selectRaw('status, COUNT(*) as aggregate')
             ->groupBy('status')
@@ -202,6 +201,7 @@ class ReportController extends Controller
             ->groupBy('source_name')
             ->pluck('aggregate', 'source_name');
         $won = $byStatus->get('won', 0);
+        $total = $byStatus->sum();
 
         return [
             'total' => $total,
@@ -216,24 +216,30 @@ class ReportController extends Controller
 
     private function customerReport(Builder $query): array
     {
+        $metrics = (clone $query)
+            ->selectRaw('COUNT(*) as total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as active, SUM(CASE WHEN lead_id IS NOT NULL THEN 1 ELSE 0 END) as converted_from_lead', ['active'])
+            ->first();
         $growth = (clone $query)
             ->selectRaw("COALESCE(SUBSTR(created_at, 1, 7), 'Unknown') as month, COUNT(*) as aggregate")
             ->groupBy('month')
             ->orderBy('month')
             ->pluck('aggregate', 'month');
-        $total = (clone $query)->count();
+        $total = (int) $metrics->total;
 
         return [
             'total' => $total,
             'new_in_range' => $total,
-            'active' => (clone $query)->where('status', 'active')->count(),
-            'converted_from_lead' => (clone $query)->whereNotNull('lead_id')->count(),
+            'active' => (int) $metrics->active,
+            'converted_from_lead' => (int) $metrics->converted_from_lead,
             'growth' => $growth,
         ];
     }
 
     private function followUpReport(Builder $query): array
     {
+        $metrics = (clone $query)
+            ->selectRaw('COUNT(*) as total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as completed, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as pending, SUM(CASE WHEN status = ? AND date < ? THEN 1 ELSE 0 END) as overdue', ['completed', 'scheduled', 'scheduled', now()])
+            ->first();
         $byUser = (clone $query)
             ->leftJoin('users', 'follow_ups.assigned_to_user_id', '=', 'users.id')
             ->selectRaw("COALESCE(users.name, 'Unassigned') as assigned_name, COUNT(*) as total, SUM(CASE WHEN follow_ups.status = 'completed' THEN 1 ELSE 0 END) as completed")
@@ -247,26 +253,29 @@ class ReportController extends Controller
             ]);
 
         return [
-            'total' => (clone $query)->count(),
-            'completed' => (clone $query)->where('status', 'completed')->count(),
-            'pending' => (clone $query)->where('status', 'scheduled')->count(),
-            'overdue' => (clone $query)->where('status', 'scheduled')->where('date', '<', now())->count(),
+            'total' => (int) $metrics->total,
+            'completed' => (int) $metrics->completed,
+            'pending' => (int) $metrics->pending,
+            'overdue' => (int) $metrics->overdue,
             'by_user' => $byUser,
         ];
     }
 
     private function activityReport(Builder $query): array
     {
+        $metrics = (clone $query)
+            ->selectRaw('COUNT(*) as total, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as completed, SUM(CASE WHEN status = ? THEN 1 ELSE 0 END) as pending', ['completed', 'pending'])
+            ->first();
         $byType = (clone $query)
             ->selectRaw('type, COUNT(*) as aggregate')
             ->groupBy('type')
             ->pluck('aggregate', 'type');
 
         return [
-            'total' => (clone $query)->count(),
+            'total' => (int) $metrics->total,
             'by_type' => $byType,
-            'completed' => (clone $query)->where('status', 'completed')->count(),
-            'pending' => (clone $query)->where('status', 'pending')->count(),
+            'completed' => (int) $metrics->completed,
+            'pending' => (int) $metrics->pending,
         ];
     }
 

@@ -7,12 +7,15 @@ use App\Models\Task;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 
 class TaskController extends Controller
 {
     public function index()
     {
         $user = Auth::user();
+
+        abort_unless($user->hasPermission('tasks.view'), 403);
 
         $query = Task::with([
             'project',
@@ -34,13 +37,24 @@ class TaskController extends Controller
 
         }
 
+        $taskCounts = (clone $query)
+            ->selectRaw('status, COUNT(*) as aggregate')
+            ->groupBy('status')
+            ->pluck('aggregate', 'status');
+
         $tasks = $query
             ->latest()
-            ->get();
+            ->paginate(25)
+            ->withQueryString();
 
         return view(
             'tasks.index',
-            compact('tasks')
+            compact('tasks') + [
+                'totalTasks' => $taskCounts->sum(),
+                'pendingTasks' => $taskCounts->get('Pending', 0),
+                'inProgressTasks' => $taskCounts->get('In Progress', 0),
+                'completedTasks' => $taskCounts->get('Completed', 0),
+            ]
         );
     }
 
@@ -51,12 +65,15 @@ class TaskController extends Controller
             403
         );
 
-        $projects = Project::latest()->get();
+        $projects = Project::query()
+            ->select(['id', 'name'])
+            ->latest()
+            ->cursor();
 
-        $users = User::where(
-            'is_active',
-            1
-        )->get();
+        $users = User::query()
+            ->where('is_active', true)
+            ->select(['id', 'name'])
+            ->lazy(500);
 
         return view(
             'tasks.create',
@@ -76,21 +93,23 @@ class TaskController extends Controller
 
         $validated = $request->validate([
 
-            'project_id' => 'required|exists:projects,id',
+            'project_id' => ['required', 'integer', 'exists:projects,id'],
 
-            'assigned_to' => 'nullable|exists:users,id',
+            'assigned_to' => ['nullable', 'integer', 'exists:users,id,is_active,1'],
 
-            'title' => 'required|string|max:255',
+            'title' => ['required', 'string', 'min:2', 'max:255'],
 
-            'description' => 'nullable|string',
+            'description' => ['nullable', 'string', 'max:5000'],
 
-            'priority' => 'required|in:Low,Medium,High',
+            'priority' => ['required', Rule::in(['Low', 'Medium', 'High'])],
 
-            'status' => 'required|in:Pending,In Progress,Completed',
+            'status' => ['required', Rule::in(['Pending', 'In Progress', 'Completed'])],
 
-            'due_date' => 'nullable|date',
+            'due_date' => ['nullable', 'date_format:Y-m-d'],
 
         ]);
+
+        $this->authorizeProjectReference($request, (int) $validated['project_id']);
 
         $validated['created_by'] = Auth::id();
 
@@ -106,6 +125,8 @@ class TaskController extends Controller
 
     public function show(Task $task)
     {
+        abort_unless(Auth::user()->hasPermission('tasks.view'), 403);
+
         $this->checkTaskAccess($task);
 
         $task->load([
@@ -124,12 +145,15 @@ class TaskController extends Controller
     {
         $this->checkManagePermission('update');
 
-        $projects = Project::latest()->get();
+        $projects = Project::query()
+            ->select(['id', 'name'])
+            ->latest()
+            ->cursor();
 
-        $users = User::where(
-            'is_active',
-            1
-        )->get();
+        $users = User::query()
+            ->where('is_active', true)
+            ->select(['id', 'name'])
+            ->lazy(500);
 
         return view(
             'tasks.edit',
@@ -150,21 +174,23 @@ class TaskController extends Controller
 
         $validated = $request->validate([
 
-            'project_id' => 'required|exists:projects,id',
+            'project_id' => ['required', 'integer', 'exists:projects,id'],
 
-            'assigned_to' => 'nullable|exists:users,id',
+            'assigned_to' => ['nullable', 'integer', 'exists:users,id,is_active,1'],
 
-            'title' => 'required|string|max:255',
+            'title' => ['required', 'string', 'min:2', 'max:255'],
 
-            'description' => 'nullable|string',
+            'description' => ['nullable', 'string', 'max:5000'],
 
-            'priority' => 'required|in:Low,Medium,High',
+            'priority' => ['required', Rule::in(['Low', 'Medium', 'High'])],
 
-            'status' => 'required|in:Pending,In Progress,Completed',
+            'status' => ['required', Rule::in(['Pending', 'In Progress', 'Completed'])],
 
-            'due_date' => 'nullable|date',
+            'due_date' => ['nullable', 'date_format:Y-m-d'],
 
         ]);
+
+        $this->authorizeProjectReference($request, (int) $validated['project_id']);
 
         $task->update($validated);
 
@@ -226,6 +252,21 @@ class TaskController extends Controller
                 true
             ),
             403
+        );
+    }
+
+    private function authorizeProjectReference(Request $request, int $projectId): void
+    {
+        $user = $request->user();
+        $project = Project::query()->findOrFail($projectId);
+
+        if (in_array($user->role?->name, ['super_admin', 'manager'], true)) {
+            return;
+        }
+
+        abort_unless(
+            $project->tasks()->where('assigned_to', $user->id)->exists(),
+            404
         );
     }
 }

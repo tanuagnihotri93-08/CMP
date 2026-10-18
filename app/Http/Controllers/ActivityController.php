@@ -55,9 +55,6 @@ class ActivityController extends Controller
             }
         });
 
-        $pendingCount = $activities->where('status', 'pending')->count();
-        $completedCount = $activities->where('status', 'completed')->count();
-
         return view('activities.index', compact(
             'activities',
             'filters'
