@@ -43,7 +43,7 @@ Check the installed PHP extensions against Composer's platform requirements with
    php artisan db:seed
    ```
 
-   The database seeder creates its sample account only when `APP_ENV=local`. It does not provision a production administrator. This project has no self-registration or user-creation screen; establish the first Super Admin through an approved, access-controlled provisioning process before production use. Do not use development/test credentials in production.
+   `DatabaseSeeder` creates sample Super Admin, Manager, and Employee accounts only when `APP_ENV=local` or `APP_ENV=testing`; it skips these predictable accounts in other environments. This project has no self-registration screen; establish production access through an approved, access-controlled provisioning process.
 
 4. Build frontend assets and start the local server:
 
@@ -62,8 +62,9 @@ Check the installed PHP extensions against Composer's platform requirements with
 
 ## Architecture
 
-- **Routes:** `routes/web.php` defines login/logout and authenticated CRM routes. Resource routes are protected by the `permission` middleware; administrative, audit, report, and export routes have dedicated permission gates.
+- **Routes:** `routes/web.php` defines login/logout and authenticated CRM routes. Leads, customers, follow-ups, activities, dashboard, performance, feedback, administration, audit, report, and export routes have their configured permission gates. Project and task resource routes use controller-level checks against the custom permissions.
 - **Controllers:** `app/Http/Controllers` contains authentication, dashboard, leads, customers, follow-ups, activities, reports, audit logs, and administration controllers.
+- **Performance calculation:** `app/Services/PerformanceScoreService.php` calculates score components; `app/Console/Commands/CalculatePerformance.php` stores the latest score and its daily history snapshot.
 - **Models:** `app/Models` contains the Eloquent records and their relationships. `User` resolves role permissions and applies assigned-record access scopes.
 - **Middleware:** `EnsurePermission` maps route actions to the corresponding permission and checks access to individual assigned records.
 - **Authorization:** roles and permissions are stored in `roles`, `permissions`, and `permission_role`. The assignment fields on CRM records are `assigned_to_user_id`.
@@ -79,6 +80,8 @@ Check the installed PHP extensions against Composer's platform requirements with
 - `follow_ups`: lead, date, type, remark, status, assignment, and timestamps.
 - `activities`: optional lead/customer links, type, subject, description, activity date, status, assignment, and timestamps.
 - `users`, `roles`, `permissions`, `permission_role`, and `audit_logs` support authentication, authorization, and audit history.
+- `performances` and `performance_histories` store the latest team score and date-keyed score snapshots.
+- `performance_feedbacks` stores sender, receiver, optional performance-history link, message, optional 1–5 rating, and Open/Reviewed status. Laravel's `notifications` table stores user notifications.
 
 ## Roles
 
@@ -98,6 +101,131 @@ The built-in roles are **Super Admin**, **Manager**, and **Employee**. Actual ac
 - **Reports:** date/status/owner-filtered CRM summaries with Excel and PDF export. Excel exports use query chunks; PDF generation is limited to 1,000 matching records to protect application memory.
 - **Audit Logs:** review recorded CRM, authentication, permission, and export events. Access is restricted by role.
 - **Notifications:** a user is notified when a CRM record is assigned or reassigned to them; notification contents and read status are private to that user.
+- **Performance:** role-scoped team scorecards, rankings, pipeline visuals, and score history are available to users with `performance.view`.
+- **Analytics:** authenticated non-employee users can view CRM KPI totals, lead status/month charts, and employee assigned-lead counts.
+- **Performance Feedback:** permitted managers and Super Admins can send feedback; receivers and authorized reviewers can view it and move its status from Open to Reviewed.
+
+## System Overview
+
+The CRM combines day-to-day customer operations with scheduled performance scoring, analytics, feedback, and user notifications. The application is built with Laravel 12, PHP 8.2+, Eloquent, Blade, Vite, and a custom database-backed role/permission system; it does not use Spatie Laravel Permission.
+
+| System area | Current implementation |
+| --- | --- |
+| CRM Core | Leads, customers, projects, tasks, follow-ups, activities, assignment, dashboard, and reports. |
+| Performance Intelligence Engine | Four weighted-equally score components, daily snapshots, team ranking, and historical trend visualization. |
+| Analytics Engine | KPI cards, lead volume by month, lead status distribution, and employee assigned-lead totals. |
+| Feedback Management System | Manager/Super Admin feedback creation, receiver visibility, optional 1–5 rating, and Open/Reviewed lifecycle. |
+| Notification System | Recipient-scoped Laravel database notifications, an unread count/dropdown, mark-read actions, and destination redirects where available. CRM record notifications also define a broadcast channel. |
+| Security Layer | Session authentication, custom role/permission checks, record-assignment access controls on protected CRM resources, validation, CSRF protection, and append-only audit logs for supported events. |
+
+### CRM data and performance flow
+
+```mermaid
+flowchart TD
+    subgraph CRM[CRM Core]
+        Leads[Leads]
+        Customers[Customers]
+        Tasks[Tasks<br/>not a score input]
+        FollowUps[Follow Ups]
+        Activities[Activities]
+    end
+
+    Leads --> Score[PerformanceScoreService]
+    Customers --> Score
+    FollowUps --> Score
+    Activities --> Score
+    Schedule[Daily scheduler at 23:55<br/>or manual performance:calculate] --> Calculate[CalculatePerformance command]
+    Score --> Calculate
+    Calculate --> Latest[Latest Performance score]
+    Calculate --> History[PerformanceHistory snapshot<br/>one row per user per date]
+    Latest --> View[Role-scoped team Performance page]
+    History --> Trend[Trend chart and previous-snapshot status]
+    Latest --> View
+    History --> View
+
+    Feedback[Performance Feedback] --> Rating[Optional 1-5 rating]
+    Feedback --> Lifecycle[Open to Reviewed]
+    Feedback --> Notice[Recipient database notification]
+    Notice --> User[Feedback recipient]
+
+    subgraph Scope[Implementation boundaries]
+        ReviewModel[PerformanceReview model/table<br/>no active route or controller workflow]
+        Missing[Improvement plans and recommendations<br/>not implemented]
+    end
+```
+
+Tasks are supported CRM records but are not included in the current performance score formula. PerformanceReview has a model/table, but no active review route or controller workflow was found. Improvement plans, automatic recommendations, and a separate insights engine are not implemented.
+
+## Performance Intelligence Engine
+
+The engine is implemented by `PerformanceScoreService`, the `performance:calculate` Artisan command, and the `Performance` / `PerformanceHistory` models.
+
+- **Automatic calculation:** Laravel's scheduler runs `performance:calculate` daily at 23:55. The command can also be started manually. It processes active Manager and Employee accounts, writes the current score to `performances`, and upserts one history snapshot per user and date in `performance_histories`.
+- **Score components:** each component is capped at 100; the final score is the rounded arithmetic mean of the four component scores.
+
+| Component | Current calculation |
+| --- | --- |
+| Lead handling | `min(assigned lead count × 10, 100)` |
+| Follow-up completion | Completed assigned follow-ups divided by all assigned follow-ups, as a percentage; zero when there are no follow-ups. |
+| Activity completion | `min(assigned activity count × 5, 100)`. The current implementation counts assigned activities rather than filtering by activity status. |
+| Conversion rate | Won assigned leads divided by assigned lead count, as a percentage; zero when there are no leads. The integer score component rounds this percentage to the nearest whole number. |
+
+Task completion is not currently a score component. Performance totals and the team average are displayed on `/performance`, along with monthly lead volume, lead status counts, rankings, and score cards. Visibility is role-scoped: Managers see active Employees; Super Admins see active Managers and Employees. The calculation command does not score Super Admin users.
+
+The follow-up completion query uses the same lowercase `completed` status stored by the follow-up workflow. Performance history supports a recent multi-snapshot trend chart and a current-versus-previous status indicator (New, Improving, Declining, or Stable). These visuals help compare stored scores over time; they do not create recommendations or improvement plans.
+
+## Feedback Management System
+
+The feedback module uses `PerformanceFeedbackController`, the `PerformanceFeedback` model, and the `/performance-feedback` routes.
+
+- **Create:** a Super Admin may send feedback to an active Manager or Employee. A Manager may send feedback to an active Employee. The message is required and limited to 2,000 characters.
+- **Rating:** an optional integer rating from 1 to 5 is stored with the feedback. The create form renders this as a star selector.
+- **Visibility:** Employees see feedback they received. Managers see feedback they sent or received. Super Admins see all feedback.
+- **Status lifecycle:** feedback begins as `Open`; the authorized status action changes it to `Reviewed`. The current workflow does not provide additional lifecycle states.
+- **Notification:** creating feedback sends a database notification to the recipient, with a link to the feedback page.
+
+```mermaid
+flowchart LR
+    Manager[Manager or Super Admin] --> Create[Create feedback<br/>recipient + message + optional rating]
+    Create --> Record[PerformanceFeedback<br/>status: Open]
+    Record --> Notification[Database notification]
+    Notification --> Employee[Recipient reviews feedback]
+    Employee --> Reviewed[Mark Reviewed]
+    Reviewed --> Record
+```
+
+`PerformanceReview` is a separate data model/table and is not part of this routed feedback workflow.
+
+## Notification System
+
+Users implement Laravel's `Notifiable` trait. Notifications are stored in Laravel's `notifications` table and are queried through the signed-in user's notification relationship, so a user can only operate on their own notification records through the provided routes.
+
+- The authenticated navbar displays the total unread count and the latest eight notifications, including title, message, relative creation time, and read/unread state.
+- Clicking a notification posts to `POST /notifications/{notification}/read`; it marks that user's notification as read, then redirects only to a root-relative or same-origin `action_url`. Invalid or external destinations return to the previous page.
+- `POST /notifications/read-all` marks the user's unread notifications as read.
+- CRM assignment/reassignment notifications use database and broadcast channels and implement queued delivery. Performance feedback notifications use the database channel.
+
+## Analytics Engine
+
+`AnalyticsController` provides the data rendered at `/analytics`. The page currently includes KPI cards for total leads, total customers, conversion rate, pending follow-ups, and activities; charts for monthly lead totals and lead-status distribution; and employee assigned-lead counts.
+
+The analytics aggregates are computed from the current CRM tables. Monthly lead totals group records by calendar month across years; lead status totals use the stored status values. The team table shows employee assigned-lead counts. The current analytics module has no user-selected filters and does not visualize performance scores; score rankings and history are shown on `/performance`.
+
+The analytics pending-follow-up KPI counts follow-ups with the stored `scheduled` status.
+
+## Security Architecture
+
+| Layer | Current behavior |
+| --- | --- |
+| Authentication | Laravel session authentication. Login requires a validated email/password and an active account; the login route is throttled to five attempts per minute. Successful login regenerates the session; logout invalidates it and regenerates the CSRF token. Passwords use Laravel's hashed cast. |
+| Roles | Custom `roles` relation on `User`; built-in roles are Super Admin, Manager, and Employee. |
+| Permissions | Custom `permissions` and `permission_role` tables. `User::hasPermission()` loads the role's permissions and denies inactive users. No Spatie permission package is used. |
+| Middleware and route checks | CRM, dashboard, performance, feedback, reports, audit, user, and role routes apply the project's `permission` middleware where configured. Analytics is inside `auth` and explicitly denies Employees in its controller. Project and task resource routes use the authenticated route group; their controllers enforce the existing custom view/create/update/delete permissions. |
+| Record access | Protected lead, customer, follow-up, and activity routes check record assignment unless the user's custom permissions grant broader access. Project and task visibility is permission-checked and scoped to assigned tasks for non-manager viewers. Feedback also applies role-specific sender/receiver checks in its controller. |
+| Input and request protection | Controllers validate submitted fields; Laravel's web middleware provides CSRF protection for state-changing forms. Database foreign keys and constraints protect supported relationships and values. |
+| Audit history | Supported authentication, CRM, permission, and export events are recorded in `audit_logs`. The `AuditLog` model prevents application-level updates and deletes. |
+
+The project uses its custom role/permission implementation. Do not install or configure Spatie Laravel Permission for this application.
 
 ## CRM workflow
 
@@ -125,7 +253,7 @@ Build frontend assets:
 npm run build
 ```
 
-The latest project verification result is recorded after the final readiness pass: **56 tests passed (397 assertions)**; `npm run build` completed successfully.
+Build frontend assets with `npm run build` before deployment. Run `php artisan test` against the release candidate before deployment.
 
 ## Production deployment checklist
 
@@ -183,7 +311,20 @@ Complete this checklist for each production environment. `.env.example` is a loc
 ### Database, cache, queue, and storage
 
 - Select and provision the cache store deliberately (database or Redis are configured). Database cache requires its table to exist; a multi-instance deployment needs a shared cache backend.
-- The current default queue connection is database. If queued work is used, provision its tables and run a monitored, supervised `php artisan queue:work` process with a restart policy. If no worker is deployed, queued jobs will not be processed.
+- The current default queue connection is database. CRM assignment notifications are queued after the surrounding transaction commits, with three attempts, 10/60-second backoff, and a 60-second timeout. Provision the jobs and failed-jobs tables, then run a monitored worker under a process supervisor with settings that keep the worker timeout below the database queue's `retry_after` (90 seconds by default):
+
+  ```bash
+  php artisan queue:work database --tries=3 --backoff=10 --timeout=60
+  ```
+
+  Monitor failures with `php artisan queue:failed`; after resolving the cause, retry jobs with `php artisan queue:retry all`. If no worker is deployed, queued jobs will not be processed.
+- Laravel's scheduler runs the performance snapshot command daily at 23:55. Add the standard scheduler invocation to the host's cron (or equivalent scheduler) so it runs every minute:
+
+  ```cron
+  * * * * * cd /path/to/crm && php artisan schedule:run >> /dev/null 2>&1
+  ```
+
+  The scheduled command uses `withoutOverlapping()` and `onOneServer()`; multi-instance deployments therefore need a shared cache store that supports atomic locks.
 - Grant the PHP/web-server identity write access only to the required Laravel runtime directories: `storage` (including logs, sessions/cache if file-backed, and app files) and `bootstrap/cache`. On Unix-like hosts, use deployment-specific ownership and restrictive group permissions (commonly directories `775`, files `664`); do not make the project world-writable. On Windows, set equivalent NTFS ACLs for the service identity.
 - Keep private storage outside the web root. Create `public/storage` with `php artisan storage:link` only when public uploads are actually used, and verify the linked target contains no private data.
 
@@ -211,114 +352,29 @@ After release, verify the health endpoint, login/logout, role-based access, CRM 
 ## Current deployment audit notes
 
 The inspected workspace uses development-oriented settings in `.env.example` (including `APP_DEBUG=true`, a local URL, and SQLite); these are not production settings. The actual production `.env`, TLS, database access, backups, queue supervision, and host filesystem permissions must be verified on the deployment host. Local Windows directory presence does not verify production filesystem ownership or ACLs.
-========================================================================================================================================================================
-=========================================================================|{SECURITY LAYERS}|============================================================================
 
-# Layer 1 — Authentication
+## Complete System Flow
 
-- Login required
-- Password hashing
-- Session-based authentication
-- Login ke baad session regenerate
-- Logout par session invalidate
+The main end-to-end flow is shown below. Analytics and reports read CRM data directly, while performance history comes from the scheduled score command and feedback notifications come from feedback creation or CRM assignment events.
 
-# Layer 2 — Authorization
+```mermaid
+flowchart TD
+    Actions[User Actions<br/>CRM work and feedback] --> Data[CRM Data Layer<br/>Leads, customers, tasks, follow-ups, activities]
+    Data --> Business[Business Logic Layer<br/>Controllers, validation, assignment, permissions]
+    Business --> Intelligence[Performance Intelligence Layer<br/>Score service and daily snapshots]
+    Intelligence --> Management[Management Layer<br/>Team performance and feedback workflow]
 
-- Roles (Super Admin, Manager, Employee)
-- Permissions
-- Middleware routes ko protect karta hai
-- Unauthorized user ko access nahi milta
+    Intelligence --> History[Performance History]
+    Management --> PerformanceView[Role-scoped performance dashboard]
+    Management --> Feedback[Feedback records and optional ratings]
+    Feedback --> FeedbackNotice[Database notification]
+    Business --> AssignmentNotice[Assignment/reassignment notification]
 
-# Layer 3 — Route Protection
-
-- Sensitive routes auth middleware ke andar
-- Permission middleware se access control
-
-# Layer 4 — CSRF Protection
-
-- Forms me CSRF token
-- Cross-Site Request Forgery attacks se protection
-
-# Layer 5 — Session Security
-
-- Secure session handling
-- Login/logout par proper session management
-- Production me Secure/HttpOnly/SameSite cookies use karne ki guidance
-
-# Layer 6 — Password Security
-
-- Passwords plain text me store nahi hote
-- Hash form me database me save hote hain
-
-# Layer 7 — Environment Security
-
-- .env source control me commit nahi hoti
-- Production me APP_DEBUG=false rakhna
-- Secret keys code se alag
-
-# Layer 8 — Input Validation
-
-- Laravel request validation
-- Invalid data database me jaane se pehle reject
-
-# Layer 9 — Database Integrity
-
-- Foreign keys
-- Constraints
-- Indexes (pending migration ke baad aur better performance)
-
-# Layer 10 — Auditability
-
-- Audit logs (agar enabled module use ho raha hai)
-- Kis user ne kya action kiya, uska record
-========================================================================================================================================================================
----------------------------------------------------------------------------|{USER email AND PASSWORDS...}|--------------------------------------------------------------
-========================================================================================================================================================================
-Role	                      Email pattern  	                              Password |   
-__________________________________________________________________________________ |
-Super Admin	                   admin@crm.com                              admin123 |
-__________________________________________________________________________________ |
-Manager	                    manager@crm.com  	                           manager123|
-__________________________________________________________________________________ |
-Employee	                 	employee@crm.com                           employee123 |
------------------------------------------------------------------------------------+
-                    CRM DATA LAYER
-                         |
-     -----------------------------------------
-     |              |             |            |
-   Leads          Tasks       Follow Ups   Activities
-     |              |             |            |
-     -----------------------------------------
-                         |
-                         ↓
-            PERFORMANCE INTELLIGENCE ENGINE
-                         |
-        -------------------------------------
-        |                 |                 |
-   Score Engine      Trend Analysis     Insights
-        |                 |                 |
-        ↓                 ↓                 ↓
- Automatic Score     Analytics Data    Recommendations
-        |
-        |
-  --------------------------------
-  |              |               |
-Lead Handling  Follow-up     Conversion
-Task Completion Completion    Rate
-                         |
-                         ↓
-              PERFORMANCE MANAGEMENT
-                         |
-        --------------------------------
-        |              |              |
-     Reviews       Feedback        Goals
-        |              |              |
-     Rating      Comments      Improvement
-                         |
-                         ↓
-              EMPLOYEE DASHBOARD
-                         |
-                         ↓
-              Notifications + History
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-              
+    Data --> Analytics[Analytics Engine]
+    Data --> Reports[Filtered reports and exports]
+    PerformanceView --> Results[Reports + Analytics + Notifications + dashboards]
+    Analytics --> Results
+    Reports --> Results
+    FeedbackNotice --> Results
+    AssignmentNotice --> Results
+========================================================================================================================================|    

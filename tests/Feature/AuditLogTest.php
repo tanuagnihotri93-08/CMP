@@ -24,7 +24,10 @@ class AuditLogTest extends TestCase
 
         $this->post(route('leads.store'), [
             'name' => 'Audit Prospect',
+            'company_name' => 'Audit Company',
             'email' => 'audit@example.test',
+            'phone' => '+1 (555) 555-0114',
+            'source' => 'Website',
             'status' => 'new',
         ])->assertRedirect(route('leads.index'));
 
@@ -40,7 +43,10 @@ class AuditLogTest extends TestCase
 
         $this->put(route('leads.update', $lead), [
             'name' => 'Audit Prospect Updated',
+            'company_name' => 'Audit Company',
             'email' => 'audit@example.test',
+            'phone' => '+1 (555) 555-0114',
+            'source' => 'Website',
             'status' => 'won',
         ])->assertRedirect(route('leads.index'));
 

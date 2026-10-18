@@ -6,7 +6,11 @@ use App\Models\Activity;
 use App\Models\Customer;
 use App\Models\FollowUp;
 use App\Models\Lead;
+use App\Models\PerformanceFeedback;
+use App\Models\Permission;
+use App\Models\Project;
 use App\Models\Role;
+use App\Models\Task;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
@@ -133,6 +137,76 @@ class PerformanceReadinessTest extends TestCase
         $this->assertSame(1, $response->viewData('customerReport')['growth'][now()->format('Y-m')]);
         $this->assertSame(1, $response->viewData('followUpReport')['overdue']);
         $this->assertSame(1, $response->viewData('activityReport')['completed']);
+    }
+
+    public function test_task_and_project_lists_paginate_while_summary_cards_cover_all_visible_records(): void
+    {
+        $manager = $this->userWithRole('manager');
+        $manager->role->permissions()->syncWithoutDetaching([
+            Permission::where('name', 'projects.view')->value('id'),
+            Permission::where('name', 'tasks.view')->value('id'),
+        ]);
+
+        $statuses = ['Pending', 'In Progress', 'Completed'];
+        for ($index = 0; $index < 26; $index++) {
+            $project = Project::create([
+                'name' => "Project {$index}",
+                'status' => $index < 14 ? 'Active' : 'Planning',
+                'created_by' => $manager->id,
+            ]);
+
+            Task::create([
+                'project_id' => $project->id,
+                'assigned_to' => $manager->id,
+                'created_by' => $manager->id,
+                'title' => "Task {$index}",
+                'priority' => 'Medium',
+                'status' => $statuses[$index % count($statuses)],
+            ]);
+        }
+
+        $this->actingAs($manager);
+
+        $projectResponse = $this->get(route('projects.index'))->assertOk();
+        $projects = $projectResponse->viewData('projects');
+        $this->assertSame(26, $projects->total());
+        $this->assertCount(10, $projects->items());
+        $this->assertSame(26, $projectResponse->viewData('totalProjects'));
+        $this->assertSame(14, $projectResponse->viewData('activeProjects'));
+        $this->assertSame(26, $projectResponse->viewData('totalProjectTasks'));
+
+        $taskResponse = $this->get(route('tasks.index'))->assertOk();
+        $tasks = $taskResponse->viewData('tasks');
+        $this->assertSame(26, $tasks->total());
+        $this->assertCount(25, $tasks->items());
+        $this->assertSame(26, $taskResponse->viewData('totalTasks'));
+        $this->assertSame(9, $taskResponse->viewData('pendingTasks'));
+        $this->assertSame(9, $taskResponse->viewData('inProgressTasks'));
+        $this->assertSame(8, $taskResponse->viewData('completedTasks'));
+    }
+
+    public function test_performance_feedback_list_is_paginated(): void
+    {
+        $manager = $this->userWithRole('manager');
+        $employee = $this->userWithRole('employee');
+
+        for ($index = 0; $index < 26; $index++) {
+            PerformanceFeedback::create([
+                'sender_id' => $manager->id,
+                'receiver_id' => $employee->id,
+                'message' => "Feedback {$index}",
+                'status' => 'Open',
+            ]);
+        }
+
+        $response = $this->actingAs($manager)
+            ->get(route('performance-feedback.index'))
+            ->assertOk();
+        $feedbacks = $response->viewData('feedbacks');
+
+        $this->assertSame(26, $feedbacks->total());
+        $this->assertCount(25, $feedbacks->items());
+        $response->assertSee('Next', false);
     }
 
     public function test_pdf_export_refuses_unbounded_large_results_with_a_clear_message(): void
