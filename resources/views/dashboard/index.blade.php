@@ -54,7 +54,7 @@
     <div class="kpi-grid">
 
 
-        <div class="kpi-card blue dashboard-kpi kpi-leads">
+        <a href="{{ route('leads.index') }}" class="kpi-card blue dashboard-kpi kpi-leads" style="color: inherit; text-decoration: none; cursor: pointer;">
 
             <div class="kpi-icon">
                 <i class="bi bi-person-lines-fill"></i>
@@ -78,10 +78,10 @@
             </div>
 
 
-        </div>
+        </a>
 
 
-        <div class="kpi-card purple dashboard-kpi kpi-won">
+        <a href="{{ route('leads.index', ['status' => 'won']) }}" class="kpi-card purple dashboard-kpi kpi-won" style="color: inherit; text-decoration: none; cursor: pointer;">
 
             <div class="kpi-icon">
                 <i class="bi bi-trophy"></i>
@@ -105,11 +105,11 @@
             </div>
 
 
-        </div>
+        </a>
 
 
 
-        <div class="kpi-card green dashboard-kpi kpi-customers">
+        <a href="{{ route('customers.index') }}" class="kpi-card green dashboard-kpi kpi-customers" style="color: inherit; text-decoration: none; cursor: pointer;">
 
             <div class="kpi-icon">
                 <i class="bi bi-people-fill"></i>
@@ -133,13 +133,13 @@
             </div>
 
 
-        </div>
+        </a>
 
 
 
 
 
-        <div class="kpi-card purple dashboard-kpi kpi-followups">
+        <a href="{{ route('followups.index', ['status' => 'scheduled']) }}" class="kpi-card purple dashboard-kpi kpi-followups" style="color: inherit; text-decoration: none; cursor: pointer;">
 
             <div class="kpi-icon">
                 <i class="bi bi-calendar-check"></i>
@@ -163,13 +163,13 @@
             </div>
 
 
-        </div>
+        </a>
 
 
 
 
 
-        <div class="kpi-card orange dashboard-kpi kpi-activities">
+        <a href="{{ route('activities.index') }}" class="kpi-card orange dashboard-kpi kpi-activities" style="color: inherit; text-decoration: none; cursor: pointer;">
 
             <div class="kpi-icon">
                 <i class="bi bi-lightning-charge"></i>
@@ -193,7 +193,7 @@
             </div>
 
 
-        </div>
+        </a>
 
 
 

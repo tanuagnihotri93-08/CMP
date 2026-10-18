@@ -56,7 +56,7 @@
 
 
             <strong>
-                {{ $projects->count() }}
+                {{ $totalProjects }}
             </strong>
 
 
@@ -80,7 +80,7 @@
 
 
             <strong>
-                {{ $projects->where('status','Active')->count() }}
+                {{ $activeProjects }}
             </strong>
 
 
@@ -105,7 +105,7 @@
 
 
             <strong>
-                {{ $projects->sum('tasks_count') }}
+                {{ $totalProjectTasks }}
             </strong>
 
 
@@ -337,6 +337,8 @@
 
 
         </div>
+
+        {{ $projects->links() }}
 
 
 

@@ -31,7 +31,7 @@
             <div>
                 <span>Total Tasks</span>
                 <h2>
-                    {{ $tasks->count() }}
+                    {{ $totalTasks }}
                 </h2>
             </div>
         </div>
@@ -43,7 +43,7 @@
             <div>
                 <span>Pending</span>
                 <h2>
-                    {{ $tasks->where('status','Pending')->count() }}
+                    {{ $pendingTasks }}
                 </h2>
             </div>
         </div>
@@ -55,7 +55,7 @@
             <div>
                 <span>In Progress</span>
                 <h2>
-                    {{ $tasks->where('status','In Progress')->count() }}
+                    {{ $inProgressTasks }}
                 </h2>
             </div>
         </div>
@@ -67,7 +67,7 @@
             <div>
                 <span>Completed</span>
                 <h2>
-                    {{ $tasks->where('status','Completed')->count() }}
+                    {{ $completedTasks }}
                 </h2>
             </div>
         </div>
@@ -113,7 +113,7 @@
                     @forelse($tasks as $task)
                     <tr>
                         <td>
-                            {{ $loop->iteration }}
+                            {{ ($tasks->firstItem() ?? 0) + $loop->index }}
                         </td>
 
                         <td>
@@ -193,6 +193,8 @@
                 </tbody>
             </table>
         </div>
+
+        {{ $tasks->links() }}
 
     </div>
 

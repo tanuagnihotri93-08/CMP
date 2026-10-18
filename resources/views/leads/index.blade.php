@@ -494,9 +494,9 @@
 
                         <th>Company</th>
 
-
-
                         <th>Contact</th>
+
+                        <th>City</th>
 
 
 
@@ -505,6 +505,10 @@
 
 
                         <th>Status</th>
+
+
+
+                        <th>Remarks</th>
 
 
 
@@ -542,7 +546,7 @@
 
 
 
-                    <tr class="module-filter-row" data-filter-search="{{ mb_strtolower($lead->name.' '.$lead->email.' '.($lead->company_name ?? '').' '.($lead->phone ?? '').' '.($lead->source ?? 'Direct')) }}" data-filter-status="{{ $lead->status }}">
+                    <tr class="module-filter-row" data-filter-search="{{ mb_strtolower($lead->name.' '.$lead->email.' '.($lead->company_name ?? '').' '.($lead->city ?? '').' '.($lead->phone ?? '').' '.($lead->source ?? 'Direct').' '.($lead->remarks ?? '')) }}" data-filter-status="{{ $lead->status }}">
 
 
 
@@ -666,25 +670,21 @@
 
                         <td>
 
-
-
                             {{ $lead->phone ?? '-' }}
 
 
 
                         </td>
 
+                        <td>
 
 
 
+                            {{ $lead->city ?? '-' }}
 
 
 
-
-
-
-
-
+                        </td>
 
                         <td>
 
@@ -720,8 +720,6 @@
 
 
 
-
-
                         <td>
 
 
@@ -743,6 +741,46 @@
 
 
                         </td>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                        <td>
+    @if(auth()->user()->hasPermission('leads.update'))
+        <form action="{{ route('leads.remarks.update', $lead) }}" method="POST" class="lead-remarks-form">
+            @csrf
+            @method('PATCH')
+            <textarea
+                class="lead-remarks-input"
+                name="remarks[{{ $lead->id }}]"
+                rows="2"
+                maxlength="1000"
+                aria-label="Remarks for {{ $lead->name }}"
+                aria-invalid="{{ $errors->has('remarks.'.$lead->id) ? 'true' : 'false' }}"
+                @if($errors->has('remarks.'.$lead->id)) aria-describedby="crm-error-lead-remarks-{{ $lead->id }}" @endif
+                placeholder="Add remarks">{{ old('remarks.'.$lead->id, $lead->remarks) }}</textarea>
+            <x-crm.field-error :field="'remarks.'.$lead->id" :id="'crm-error-lead-remarks-'.$lead->id" />
+            <button type="submit" class="lead-remarks-save">Save</button>
+        </form>
+    @else
+        @if(filled($lead->remarks))
+            <span title="{{ $lead->remarks }}">{{ \Illuminate\Support\Str::limit($lead->remarks, 60) }}</span>
+        @else
+            -
+        @endif
+    @endif
+</td>
 
 
 
@@ -896,7 +934,7 @@
 
 
 
-                        <td class="crm-empty-cell" colspan="7">
+                        <td class="crm-empty-cell" colspan="9">
 
                             @include('partials.crm-empty-state', [
 
@@ -936,7 +974,7 @@
 
                     <tr class="module-filter-empty" hidden>
 
-                        <td class="crm-empty-cell" colspan="7">
+                        <td class="crm-empty-cell" colspan="9">
 
                             @include('partials.crm-empty-state', [
 
@@ -2936,6 +2974,53 @@ tbody td {
 
 }
 
+
+.lead-remarks-form {
+    display: grid;
+    justify-items: start;
+    gap: 5px;
+    min-width: 170px;
+}
+.lead-remarks-input {
+    width: 210px;
+    max-width: 100%;
+    min-height: 48px;
+    padding: 7px 9px;
+    border: 1px solid #CBD5E1;
+    border-radius: 9px;
+    background: #F8FAFC;
+    color: #334155;
+    font: inherit;
+    font-size: 12px;
+    line-height: 1.35;
+    resize: vertical;
+}
+.lead-remarks-input:focus {
+    border-color: #60A5FA;
+    outline: 2px solid rgb(37 99 235 / 14%);
+}
+.lead-remarks-input[aria-invalid="true"] {
+    border-color: #EF4444;
+}
+.lead-remarks-save {
+    min-height: 28px;
+    padding: 4px 10px;
+    border: 0;
+    border-radius: 7px;
+    background: linear-gradient(135deg, #2563EB, #7C3AED);
+    color: #FFFFFF;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    cursor: pointer;
+}
+.lead-remarks-save:hover {
+    filter: brightness(1.06);
+}
+.lead-remarks-save:focus-visible {
+    outline: 3px solid rgb(37 99 235 / 28%);
+    outline-offset: 2px;
+}
 </style>
 
 @endsection

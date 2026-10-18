@@ -47,7 +47,7 @@
 
 
 
-        <form action="{{ route('leads.store') }}" method="POST" novalidate>
+        <form action="{{ route('leads.store') }}" method="POST">
 
 
             @csrf
@@ -74,6 +74,8 @@
                     type="text"
                     id="name"
                     name="name"
+                    required
+                    maxlength="255"
                     @class(['form-control', 'crm-invalid-field' => $errors->has('name')])
                     aria-invalid="{{ $errors->has('name') ? 'true' : 'false' }}"
                     @if($errors->has('name')) aria-describedby="crm-error-name" @endif
@@ -96,7 +98,7 @@
 
 
                     <label class="form-label">
-                        Company Name
+                        Company Name <span>*</span>
                     </label>
 
 
@@ -104,6 +106,8 @@
                     type="text"
                     id="company_name"
                     name="company_name"
+                    required
+                    maxlength="255"
                     @class(['form-control', 'crm-invalid-field' => $errors->has('company_name')])
                     aria-invalid="{{ $errors->has('company_name') ? 'true' : 'false' }}"
                     @if($errors->has('company_name')) aria-describedby="crm-error-company-name" @endif
@@ -127,7 +131,7 @@
 
 
                     <label class="form-label">
-                        Email
+                        Email <span>*</span>
                     </label>
 
 
@@ -135,6 +139,8 @@
                     type="email"
                     id="email"
                     name="email"
+                    required
+                    maxlength="255"
                     @class(['form-control', 'crm-invalid-field' => $errors->has('email')])
                     aria-invalid="{{ $errors->has('email') ? 'true' : 'false' }}"
                     @if($errors->has('email')) aria-describedby="crm-error-email" @endif
@@ -157,7 +163,7 @@
 
 
                     <label class="form-label">
-                        Phone
+                        Phone <span>*</span>
                     </label>
 
 
@@ -165,6 +171,8 @@
                     type="text"
                     id="phone"
                     name="phone"
+                    required
+                    maxlength="20"
                     @class(['form-control', 'crm-invalid-field' => $errors->has('phone')])
                     aria-invalid="{{ $errors->has('phone') ? 'true' : 'false' }}"
                     @if($errors->has('phone')) aria-describedby="crm-error-phone" @endif
@@ -188,11 +196,11 @@
 
 
                     <label class="form-label">
-                        Lead Source
+                        Lead Source <span>*</span>
                     </label>
 
 
-                    <select id="source" name="source" @class(['form-select', 'crm-invalid-field' => $errors->has('source')]) aria-invalid="{{ $errors->has('source') ? 'true' : 'false' }}" @if($errors->has('source')) aria-describedby="crm-error-source" @endif>
+                    <select id="source" name="source" required @class(['form-select', 'crm-invalid-field' => $errors->has('source')]) aria-invalid="{{ $errors->has('source') ? 'true' : 'false' }}" @if($errors->has('source')) aria-describedby="crm-error-source" @endif>
 
 
                         <option value="">
@@ -200,22 +208,22 @@
                         </option>
 
 
-                        <option value="Website">
+                        <option value="Website" @selected(old('source') === 'Website')>
                             Website
                         </option>
 
 
-                        <option value="Referral">
+                        <option value="Referral" @selected(old('source') === 'Referral')>
                             Referral
                         </option>
 
 
-                        <option value="Social Media">
+                        <option value="Social Media" @selected(old('source') === 'Social Media')>
                             Social Media
                         </option>
 
 
-                        <option value="Direct">
+                        <option value="Direct" @selected(old('source') === 'Direct')>
                             Direct
                         </option>
 
@@ -243,29 +251,29 @@
                     </label>
 
 
-                    <select id="status" name="status" @class(['form-select', 'crm-invalid-field' => $errors->has('status')]) aria-invalid="{{ $errors->has('status') ? 'true' : 'false' }}" @if($errors->has('status')) aria-describedby="crm-error-status" @endif>
+                    <select id="status" name="status" required @class(['form-select', 'crm-invalid-field' => $errors->has('status')]) aria-invalid="{{ $errors->has('status') ? 'true' : 'false' }}" @if($errors->has('status')) aria-describedby="crm-error-status" @endif>
 
 
-                        <option value="new">
+                        <option value="new" @selected(old('status', 'new') === 'new')>
                             New
                         </option>
 
 
-                        <option value="qualified">
+                        <option value="qualified" @selected(old('status') === 'qualified')>
                             Qualified
                         </option>
 
 
-                        <option value="proposal">
+                        <option value="proposal" @selected(old('status') === 'proposal')>
                             Proposal
                         </option>
 
 
-                        <option value="won">
+                        <option value="won" @selected(old('status') === 'won')>
                             Won
                         </option>
 
-                        <option value="lost">
+                        <option value="lost" @selected(old('status') === 'lost')>
                             Lost
                         </option>
 
@@ -276,6 +284,16 @@
                     <x-crm.field-error field="status" />
 
 
+                </div>
+
+                <div class="form-group">
+                    <label class="form-label" for="city">City</label>
+                    <input type="text" id="city" name="city"
+                        @class(['form-control', 'crm-invalid-field' => $errors->has('city')])
+                        aria-invalid="{{ $errors->has('city') ? 'true' : 'false' }}"
+                        @if($errors->has('city')) aria-describedby="crm-error-city" @endif
+                        maxlength="100" placeholder="Enter city" value="{{ old('city') }}">
+                    <x-crm.field-error field="city" />
                 </div>
 
 
@@ -325,6 +343,16 @@
                 <x-crm.field-error field="notes" />
 
 
+            </div>
+
+            <div class="form-group full-width">
+                <label class="form-label" for="remarks">Remarks</label>
+                <textarea id="remarks" name="remarks"
+                    @class(['form-textarea', 'crm-invalid-field' => $errors->has('remarks')])
+                    aria-invalid="{{ $errors->has('remarks') ? 'true' : 'false' }}"
+                    @if($errors->has('remarks')) aria-describedby="crm-error-remarks" @endif
+                    maxlength="1000" rows="4" placeholder="Add remarks">{{ old('remarks') }}</textarea>
+                <x-crm.field-error field="remarks" />
             </div>
 
 

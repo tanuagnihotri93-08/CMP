@@ -3,7 +3,7 @@
     <!-- Brand -->
     <div class="sidebar-brand">
         <div class="brand-logo">
-            C
+            <img src="{{ asset('images/betabyte.jpg') }}" alt="Beta Byte logo">
         </div>
         <div class="brand-details">
             <h2>
@@ -96,21 +96,34 @@
         </a>
         @endif
 
-       @if(auth()->user()?->hasPermission('performance.view'))
-<a href="{{ route('performance.index') }}"
-   class="{{ request()->is('performance') ? 'active' : '' }}">
-    <i class="bi bi-speedometer2"></i>
-    <span>Performance</span>
-</a>
-@endif
+        @if(auth()->user()?->hasPermission('performance.view')
+            || auth()->user()?->hasPermission('performance.feedback.view'))
+        @php($performanceMenuActive = request()->is('performance/*') || request()->is('performance-feedback/*') || request()->is('performance') || request()->is('performance-feedback'))
+        <details class="sidebar-nav-group" {{ $performanceMenuActive ? 'open' : '' }}>
+            <summary class="sidebar-nav-parent">
+                <i class="bi bi-speedometer2"></i>
+                <span>Performance</span>
+                <i class="bi bi-chevron-down sidebar-nav-chevron" aria-hidden="true"></i>
+            </summary>
+            <div class="sidebar-subnav">
+                @if(auth()->user()?->hasPermission('performance.view'))
+                <a href="{{ route('performance.index') }}"
+                   class="{{ request()->is('performance') ? 'active' : '' }}">
+                    <i class="bi bi-grid-1x2"></i>
+                    <span>Dashboard</span>
+                </a>
+                @endif
 
-@if(auth()->user()?->hasPermission('performance.feedback.view'))
-<a href="{{ route('performance-feedback.index') }}"
-   class="{{ request()->is('performance-feedback*') ? 'active' : '' }}">
-    <i class="bi bi-chat-square-text"></i>
-    <span>Feedback</span>
-</a>
-@endif
+                @if(auth()->user()?->hasPermission('performance.feedback.view'))
+                <a href="{{ route('performance-feedback.index') }}"
+                   class="{{ request()->is('performance-feedback*') ? 'active' : '' }}">
+                    <i class="bi bi-chat-square-text"></i>
+                    <span>Feedback</span>
+                </a>
+                @endif
+            </div>
+        </details>
+        @endif
         @if(auth()->user()?->hasPermission('audit_logs.view')
             || auth()->user()?->hasPermission('reports.view')
             || auth()->user()?->hasPermission('users.manage')
@@ -221,12 +234,20 @@
     align-items: center;
     justify-content: center;
     border-radius: 16px;
-    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    background: #ffffff;
     font-size: 24px;
     font-weight: 700;
     color: white;
     box-shadow: 0 10px 30px rgba(37,99,235,.45);
     animation: logoFloat 3s ease-in-out infinite;
+}
+
+.brand-logo img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    border-radius: inherit;
+    object-fit: cover;
 }
 
 @keyframes logoFloat {
@@ -294,6 +315,99 @@
     width: 22px;
     text-align: center;
     transition: .3s ease;
+}
+
+.sidebar-nav-group {
+    margin-bottom: 8px;
+    interpolate-size: allow-keywords;
+}
+
+.sidebar-nav-group::details-content {
+    block-size: 0;
+    overflow: clip;
+    content-visibility: hidden;
+    transition:
+        block-size .25s ease,
+        content-visibility .25s allow-discrete;
+}
+
+.sidebar-nav-group[open]::details-content {
+    block-size: auto;
+    content-visibility: visible;
+}
+
+@starting-style {
+    .sidebar-nav-group[open]::details-content {
+        block-size: 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .sidebar-nav-group::details-content {
+        transition: none;
+    }
+}
+
+.sidebar-nav-parent {
+    height: 48px;
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    padding: 0 15px;
+    color: #cbd5e1;
+    font-weight: 600;
+    list-style: none;
+    cursor: pointer;
+}
+
+.sidebar-nav-parent::-webkit-details-marker {
+    display: none;
+}
+
+.sidebar-nav-parent:hover {
+    color: #fff;
+    background: rgba(255,255,255,.05);
+    border-radius: 14px;
+}
+
+.sidebar-nav-parent:focus-visible {
+    outline: 2px solid #93c5fd;
+    outline-offset: 2px;
+    border-radius: 14px;
+}
+
+.sidebar-nav-parent i {
+    width: 22px;
+    text-align: center;
+    font-size: 18px;
+}
+
+.sidebar-nav-parent .sidebar-nav-chevron {
+    width: auto;
+    margin-left: auto;
+    font-size: 13px;
+}
+
+.sidebar-nav-group[open] .sidebar-nav-chevron {
+    transform: rotate(180deg);
+}
+
+.sidebar-subnav {
+    margin: 0 0 8px 18px;
+    padding-left: 10px;
+    border-left: 1px solid rgba(148,163,184,.25);
+}
+
+.sidebar-navigation .sidebar-subnav a {
+    height: 40px;
+    margin-bottom: 4px;
+    padding: 0 12px;
+    border-radius: 11px;
+    font-size: 14px;
+}
+
+.sidebar-navigation .sidebar-subnav a:last-child {
+    margin-bottom: 0;
 }
 
 /* HOVER */
@@ -461,6 +575,126 @@ body.sidebar-collapsed .profile-info {
 
 body.sidebar-collapsed .logout-form {
     margin-left: 0;
+}
+
+/* Light-theme color and depth layer; dimensions and motion remain unchanged. */
+html[data-theme="light"] body .sidebar {
+    background: #E2E8F0;
+    border-right-color: #E2E8F0;
+    box-shadow: 12px 0 30px rgba(37, 99, 235, .08);
+}
+
+html[data-theme="light"] body .sidebar-brand {
+    border-bottom-color: #E2E8F0;
+}
+
+html[data-theme="light"] body .brand-logo {
+    background: #ffffff;
+    box-shadow: 0 10px 26px rgba(37, 99, 235, .24);
+}
+
+html[data-theme="light"] body .brand-details h2 {
+    color: #0F172A;
+}
+
+html[data-theme="light"] body .brand-details p,
+html[data-theme="light"] body .menu-title {
+    color: #94A3B8;
+}
+
+html[data-theme="light"] body .sidebar-navigation {
+    scrollbar-color: rgba(100, 116, 139, .35) transparent;
+}
+
+html[data-theme="light"] body .sidebar-navigation::-webkit-scrollbar-thumb {
+    background: rgba(100, 116, 139, .3);
+}
+
+html[data-theme="light"] body .sidebar-navigation a,
+html[data-theme="light"] body .sidebar-nav-parent {
+    color: #475569;
+}
+
+html[data-theme="light"] body .sidebar-navigation a i,
+html[data-theme="light"] body .sidebar-nav-parent i {
+    color: #64748B;
+}
+
+html[data-theme="light"] body .sidebar-navigation a:hover {
+    background: #DBEAFE;
+    color: #2563EB;
+}
+
+html[data-theme="light"] body .sidebar-navigation a:hover i {
+    color: #2563EB;
+}
+
+html[data-theme="light"] body .sidebar-navigation a.active {
+    background: linear-gradient(135deg, #2563EB, #7C3AED);
+    color: #FFFFFF;
+    box-shadow: 0 8px 24px rgba(37, 99, 235, .24), 0 0 18px rgba(37, 99, 235, .12), inset 0 0 18px rgba(255, 255, 255, .14);
+}
+
+html[data-theme="light"] body .sidebar-navigation a.active i {
+    color: #FFFFFF;
+}
+
+html[data-theme="light"] body .sidebar-nav-parent:hover,
+html[data-theme="light"] body .sidebar-nav-group[open] .sidebar-nav-parent {
+    color: #2563EB;
+    background: #DBEAFE;
+    border-radius: 14px;
+}
+
+html[data-theme="light"] body .sidebar-nav-parent:hover i,
+html[data-theme="light"] body .sidebar-nav-group[open] .sidebar-nav-parent i {
+    color: #2563EB;
+}
+
+html[data-theme="light"] body .sidebar-nav-parent:focus-visible {
+    outline-color: #2563EB;
+}
+
+html[data-theme="light"] body .sidebar-subnav {
+    border-left-color: #DDD6FE;
+}
+
+html[data-theme="light"] body .sidebar-profile {
+    background: rgba(255, 255, 255, .9);
+    border-color: #E2E8F0;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, .06);
+}
+
+html[data-theme="light"] body .sidebar-profile:hover {
+    background: #F8FAFC;
+    box-shadow: 0 16px 34px rgba(37, 99, 235, .1);
+}
+
+html[data-theme="light"] body .profile-avatar {
+    background: linear-gradient(135deg, #2563EB, #7C3AED);
+}
+
+html[data-theme="light"] body .profile-avatar span {
+    border-color: #FFFFFF;
+}
+
+html[data-theme="light"] body .profile-info h4 {
+    color: #0F172A;
+}
+
+html[data-theme="light"] body .profile-info p {
+    color: #64748B;
+}
+
+html[data-theme="light"] body .logout-btn {
+    color: #64748B;
+    background: #F8FAFC;
+    border-color: #E2E8F0;
+}
+
+html[data-theme="light"] body .logout-btn:hover {
+    color: #1D4ED8;
+    background: #DBEAFE;
 }
 
 </style>

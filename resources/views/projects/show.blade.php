@@ -113,7 +113,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                @forelse($project->tasks as $task)
+                @forelse($tasks as $task)
                     <tr>
                         <td>{{ $task->title }}</td>
                         <td>{{ $task->assignedUser->name ?? 'Unassigned' }}</td>
@@ -129,6 +129,7 @@
                 </tbody>
             </table>
         </div>
+        {{ $tasks->links() }}
 
     </div>
 

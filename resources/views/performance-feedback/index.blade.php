@@ -74,6 +74,8 @@
             </tbody>
         </table>
         </div>
+
+        {{ $feedbacks->links() }}
     </section>
 
 </div>

@@ -281,7 +281,7 @@ document.addEventListener("DOMContentLoaded", function () {
                 labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
                 datasets: [{
                     label: 'Leads',
-                    data: {!! json_encode($leadChartData) !!},
+                    data: {{ Illuminate\Support\Js::from($leadChartData) }},
                     borderWidth: 3,
                     tension: 0.4,
                     fill: true,
@@ -304,8 +304,8 @@ document.addEventListener("DOMContentLoaded", function () {
         new Chart(trendCanvas, {
             type: 'line',
             data: {
-                labels: {!! json_encode($trendLabels) !!},
-                datasets: {!! json_encode($trendDatasets) !!}
+                labels: {{ Illuminate\Support\Js::from($trendLabels) }},
+                datasets: {{ Illuminate\Support\Js::from($trendDatasets) }}
             },
             options: {
                 responsive: true,
@@ -324,7 +324,7 @@ document.addEventListener("DOMContentLoaded", function () {
             data: {
                 labels: ['New', 'Proposal', 'Won', 'Lost'],
                 datasets: [{
-                    data: {!! json_encode($statusChartData) !!},
+                    data: {{ Illuminate\Support\Js::from($statusChartData) }},
                     backgroundColor: ['#3b82f6', '#a855f7', '#22c55e', '#ef4444'],
                     borderWidth: 0
                 }]

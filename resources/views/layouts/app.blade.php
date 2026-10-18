@@ -12,6 +12,17 @@
         CRM System
     </title>
 
+    <script>
+        (() => {
+            try {
+                const savedTheme = localStorage.getItem('crm-theme');
+                document.documentElement.dataset.theme = ['dark', 'light'].includes(savedTheme) ? savedTheme : 'dark';
+            } catch (error) {
+                document.documentElement.dataset.theme = 'dark';
+            }
+        })();
+    </script>
+
 
     <!-- Bootstrap Icons -->
 
@@ -27,7 +38,9 @@
 </head>
 
 
-<body>
+<body
+    data-user-id="{{ auth()->check() ? auth()->user()->id : '' }}"
+>
 
 
     @include('partials.sidebar')
@@ -41,17 +54,13 @@
         hidden>
     </button>
 
-    @include('partials.navbar')
+    <div class="crm-main-layout">
+        @include('partials.navbar')
 
-
-
-    <main class="content">
-
-
-        @yield('content')
-
-
-    </main>
+        <main class="content">
+            @yield('content')
+        </main>
+    </div>
 
 
 
@@ -513,9 +522,237 @@ body{
 
 
 
+/* ===============================
+   FOLLOW-UP REMINDER POPUP (GLOBAL)
+================================== */
+
+#followup-reminder-popup-container .swal2-container {
+    z-index: 10000 !important;
+}
+
+#followup-reminder-popup-container .swal2-popup {
+    background: linear-gradient(135deg, #f59e0b, #ef4444) !important;
+    border: none !important;
+    border-radius: 16px !important;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5) !important;
+    color: #ffffff !important;
+    padding: 24px 32px !important;
+    font-family: 'Inter', sans-serif !important;
+}
+
+#followup-reminder-popup-container .swal2-title {
+    color: #ffffff !important;
+    font-size: 20px !important;
+    font-weight: 700 !important;
+    margin-bottom: 12px !important;
+}
+
+#followup-reminder-popup-container .swal2-html-container {
+    color: #fef3c7 !important;
+    font-size: 15px !important;
+    line-height: 1.5 !important;
+    margin-bottom: 24px !important;
+}
+
+#followup-reminder-popup-container .swal2-confirm,
+#followup-reminder-popup-container .swal2-cancel {
+    border-radius: 8px !important;
+    font-weight: 600 !important;
+    padding: 10px 24px !important;
+    font-size: 14px !important;
+    margin: 0 8px !important;
+}
+
+#followup-reminder-popup-container .swal2-confirm {
+    background: #ffffff !important;
+    color: #f59e0b !important;
+    border: none !important;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15) !important;
+}
+
+#followup-reminder-popup-container .swal2-cancel {
+    background: rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    border: none !important;
+}
+
+#followup-reminder-popup-container .swal2-confirm:hover {
+    background: #fef3c7 !important;
+    color: #f59e0b !important;
+}
+
+#followup-reminder-popup-container .swal2-cancel:hover {
+    background: rgba(255, 255, 255, 0.35) !important;
+}
+
+#followup-reminder-popup-container .swal2-timer-progress-bar {
+    background: rgba(255, 255, 255, 0.4) !important;
+    height: 4px !important;
+    border-radius: 2px !important;
+}
+
+/* ===============================
+   EMERGENCY FOLLOW-UP ALERT (GLOBAL)
+================================== */
+
+#emergency-alert-container {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+}
+
+#emergency-alert-container:not(.hidden) {
+    display: flex !important;
+}
+
+#emergency-alert-container .emergency-alert-card {
+    position: relative;
+    background: #ffffff;
+    color: #111827;
+    border-radius: 16px;
+    padding: 28px 32px;
+    min-width: 360px;
+    max-width: 520px;
+    box-shadow: 0 30px 60px -12px rgba(0, 0, 0, 0.55);
+    border: 3px solid #dc2626;
+    font-family: 'Inter', sans-serif;
+    animation: emergencyPulse 1.2s infinite alternate;
+}
+
+@keyframes emergencyPulse {
+    0% {
+        box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.6);
+        border-color: #dc2626;
+    }
+    100% {
+        box-shadow: 0 0 0 16px rgba(220, 38, 38, 0);
+        border-color: #b91c1c;
+    }
+}
+
+#emergency-alert-container .emergency-alert-icon {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 48px;
+    height: 48px;
+    background: #dc2626;
+    color: #ffffff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    border: 4px solid #ffffff;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    animation: emergencySpin 1.5s linear infinite;
+}
+
+@keyframes emergencySpin {
+    from { transform: translateX(-50%) rotate(0deg); }
+    to { transform: translateX(-50%) rotate(360deg); }
+}
+
+#emergency-alert-container .emergency-alert-title {
+    font-size: 20px;
+    font-weight: 800;
+    color: #dc2626;
+    margin: 0 0 10px 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#emergency-alert-container .emergency-alert-title i {
+    color: #dc2626;
+}
+
+#emergency-alert-container .emergency-alert-body {
+    font-size: 14px;
+    line-height: 1.55;
+    color: #374151;
+    margin: 0 0 16px 0;
+}
+
+#emergency-alert-container .emergency-alert-detail {
+    font-size: 13px;
+    color: #6b7280;
+    margin: 4px 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#emergency-alert-container .emergency-alert-detail i {
+    color: #dc2626;
+    width: 16px;
+    text-align: center;
+}
+
+#emergency-alert-container .emergency-alert-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    margin-top: 22px;
+    padding-top: 16px;
+    border-top: 1px solid #e5e7eb;
+}
+
+#emergency-alert-container .emergency-alert-btn-confirm {
+    background: #dc2626;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 26px;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+    transition: transform 0.15s, box-shadow 0.15s;
+}
+
+#emergency-alert-container .emergency-alert-btn-confirm:hover {
+    background: #b91c1c;
+    box-shadow: 0 6px 16px rgba(220, 38, 38, 0.45);
+    transform: translateY(-1px);
+}
+
+#emergency-alert-container .emergency-alert-btn-confirm:active {
+    transform: translateY(0);
+}
+
+html[data-theme="light"] #emergency-alert-container .emergency-alert-card {
+    background: #ffffff;
+    color: #111827;
+}
+
+html[data-theme="light"] #emergency-alert-container .emergency-alert-body {
+    color: #374151;
+}
+
+html[data-theme="light"] #emergency-alert-container .emergency-alert-detail {
+    color: #4b5563;
+}
+
+html[data-theme="light"] #emergency-alert-container .emergency-alert-actions {
+    border-top-color: #e5e7eb;
+}
+
+
 </style>
 
 @include('partials.flash-alerts')
+
+@include('partials.emergency-alert')
+
+@include('partials.followup-reminder-popup')
 
 </body>
 

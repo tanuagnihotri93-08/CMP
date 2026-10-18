@@ -67,7 +67,7 @@
                 <table class="module-table">
                     <thead><tr><th>Date</th><th>Type</th><th>Remark</th><th>Status</th><th></th></tr></thead>
                     <tbody>
-                        @forelse($customer->lead->followUps as $followUp)
+                        @forelse($followUps as $followUp)
                             <tr>
                                 <td>{{ $followUp->date?->format('M j, Y g:i A') ?? 'Date not set' }}</td>
                                 <td>{{ $followUp->type }}</td>
@@ -84,6 +84,7 @@
                         @endforelse
                     </tbody>
                 </table>
+            {{ $followUps->links() }}
             </div>
         </div>
     @endif
@@ -99,16 +100,14 @@
             <table class="module-table">
                 <thead><tr><th>Date</th><th>Type</th><th>Subject</th><th>Lead</th><th>Status</th><th></th></tr></thead>
                 <tbody>
-                    @forelse($customer->activities as $activity)
+                    @forelse($activities as $activity)
                         <tr>
                             <td>{{ $activity->activity_date?->format('M j, Y g:i A') ?? 'Date not set' }}</td>
                             <td>{{ $activity->type }}</td>
                             <td>{{ $activity->subject }}</td>
                             <td>
                                 @if($activity->lead && auth()->user()->hasPermission('leads.view'))
-                                    @if(auth()->user()->hasPermission('leads.view'))
-                                        <a href="{{ route('leads.show', $activity->lead) }}">{{ $activity->lead->name }}</a>
-                                    @endif
+                                    <a href="{{ route('leads.show', $activity->lead) }}">{{ $activity->lead->name }}</a>
                                 @elseif($activity->lead)
                                     Linked lead
                                 @else
@@ -127,6 +126,7 @@
                     @endforelse
                 </tbody>
             </table>
+            {{ $activities->links() }}
         </div>
     </div>
 </div>

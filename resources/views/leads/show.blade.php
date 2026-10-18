@@ -90,6 +90,11 @@
 
             </div>
 
+            <div class="detail-item">
+                <label>City</label>
+                <p>{{ $lead->city ?? '-' }}</p>
+            </div>
+
 
             <div class="detail-item">
 
@@ -144,6 +149,11 @@
                 {{ $lead->notes ?? 'No notes available' }}
             </p>
 
+        </div>
+
+        <div class="notes-card">
+            <h3>Remarks</h3>
+            <p>{{ $lead->remarks ?? 'No remarks available' }}</p>
         </div>
 
 
@@ -206,7 +216,7 @@
             <table class="module-table">
                 <thead><tr><th>Date</th><th>Type</th><th>Subject</th><th>Customer</th><th>Status</th><th></th></tr></thead>
                 <tbody>
-                    @forelse($lead->activities as $activity)
+                    @forelse($activities as $activity)
                         <tr>
                             <td>{{ $activity->activity_date?->format('M j, Y g:i A') ?? 'Date not set' }}</td>
                             <td>{{ $activity->type }}</td>
@@ -233,6 +243,7 @@
                 </tbody>
             </table>
         </div>
+        {{ $activities->links() }}
     </div>
 
 

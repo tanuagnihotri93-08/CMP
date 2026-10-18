@@ -107,6 +107,15 @@
             </div>
         </details>
 
+        <button
+            class="crm-theme-toggle"
+            type="button"
+            aria-label="Switch to light theme"
+            aria-pressed="false"
+            title="Switch to light theme">
+            <i class="bi bi-sun" aria-hidden="true"></i>
+        </button>
+
 
 
 
@@ -170,7 +179,9 @@
 
 .navbar{
 
-    margin-left:280px;
+    width:100%;
+    margin-left:0;
+    box-sizing:border-box;
 
     height:80px;
 
@@ -397,6 +408,36 @@
 @keyframes notifPanelIn{
     from{ opacity:0; transform:translateY(-10px) scale(.97); }
     to{ opacity:1; transform:translateY(0) scale(1); }
+}
+
+@supports selector(details::details-content) {
+    .crm-notification-menu::details-content {
+        content-visibility: hidden;
+        transition: content-visibility .25s allow-discrete;
+    }
+
+    .crm-notification-menu[open]::details-content {
+        content-visibility: visible;
+    }
+
+    .crm-notification-panel {
+        animation: none;
+        opacity: 0;
+        transform: translateY(-10px) scale(.97);
+        transition: opacity .25s ease, transform .25s ease;
+    }
+
+    .crm-notification-menu[open] .crm-notification-panel {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+
+    @starting-style {
+        .crm-notification-menu[open] .crm-notification-panel {
+            opacity: 0;
+            transform: translateY(-10px) scale(.97);
+        }
+    }
 }
 
 /* Heading */
@@ -679,16 +720,6 @@
 /* SIDEBAR SYNC */
 
 
-body.sidebar-collapsed .navbar{
-
-    margin-left:90px;
-
-}
-
-
-
-
-
 @media(max-width:900px){
 
 
@@ -727,5 +758,133 @@ body.sidebar-collapsed .navbar{
     z-index:1100;
 }
 
+
+/* Light-theme header finish. These overrides are scoped to the header only. */
+html[data-theme="light"] body .crm-main-layout > .navbar {
+    background: linear-gradient(105deg, #FFFFFF 0%, #FFFFFF 72%, #F5F3FF 100%) !important;
+    border-bottom: 1px solid #E0E7FF;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, .075), 0 2px 8px rgba(124, 58, 237, .06);
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar::after {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent 0%, #2563EB 28%, #7C3AED 55%, #EC4899 78%, #06B6D4 100%);
+    content: "";
+    opacity: .8;
+    pointer-events: none;
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .page-greeting h3,
+html[data-theme="light"] body .crm-main-layout > .navbar .admin-details h4 {
+    color: #0F172A !important;
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .page-greeting p,
+html[data-theme="light"] body .crm-main-layout > .navbar .admin-details p,
+html[data-theme="light"] body .crm-main-layout > .navbar .admin-profile > i {
+    color: #64748B !important;
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .sidebar-toggle,
+html[data-theme="light"] body .crm-main-layout > .navbar .crm-theme-toggle {
+    color: #475569;
+    background: #FFFFFF;
+    border-color: #E2E8F0;
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .sidebar-toggle:hover,
+html[data-theme="light"] body .crm-main-layout > .navbar .crm-theme-toggle:hover {
+    color: #FFFFFF;
+    background: linear-gradient(135deg, #2563EB, #7C3AED);
+    border-color: transparent;
+    box-shadow: 0 10px 25px rgba(37, 99, 235, .28);
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .crm-notification-toggle {
+    display: inline-flex;
+    min-height: 42px;
+    align-items: center;
+    gap: 9px;
+    padding: 0 13px;
+    border: 1px solid #DDD6FE;
+    border-radius: 13px;
+    background: #F5F3FF;
+    color: #334155;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .crm-notification-toggle > i {
+    color: #7C3AED;
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .crm-notification-toggle:hover {
+    background: #ECFEFF;
+    border-color: #67E8F9;
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .crm-notification-count {
+    padding: 2px 7px;
+    border: 1px solid rgba(255, 255, 255, .7);
+    border-radius: 999px;
+    background: linear-gradient(135deg, #2563EB, #7C3AED);
+    color: #FFFFFF;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.4;
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .admin-profile {
+    border-left-color: #DDD6FE;
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .admin-avatar {
+    background: linear-gradient(135deg, #7C3AED, #EC4899);
+    box-shadow: 0 8px 20px rgba(124, 58, 237, .24);
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .crm-notification-panel {
+    border-color: #DDD6FE;
+    box-shadow: 0 24px 58px rgba(15, 23, 42, .15), 0 4px 14px rgba(124, 58, 237, .07);
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .crm-notification-heading {
+    background: linear-gradient(110deg, #FFFFFF, #F5F3FF);
+    border-bottom-color: #EDE9FE;
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .crm-notification-heading span {
+    color: #5B21B6;
+    background: #F5F3FF;
+    border-color: #DDD6FE;
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .crm-notification-mark-all:hover {
+    background: linear-gradient(135deg, #7C3AED, #EC4899);
+    box-shadow: 0 8px 20px rgba(124, 58, 237, .25);
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .crm-notification-entry:hover .crm-notification-copy strong {
+    color: #5B21B6;
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .crm-notification-item.is-unread {
+    background: linear-gradient(90deg, rgba(37, 99, 235, .12), rgba(6, 182, 212, .025) 80%);
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .crm-notification-item.is-unread::before {
+    background: linear-gradient(180deg, #2563EB, #06B6D4);
+}
+
+html[data-theme="light"] body .crm-main-layout > .navbar .crm-notification-item.is-unread .crm-notification-read-state {
+    color: #5B21B6;
+    border-color: #DDD6FE;
+    background: #F5F3FF;
+}
 
 </style>

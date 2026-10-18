@@ -74,7 +74,7 @@
                 <table class="analytics-table">
                     <thead><tr><th scope="col">Team member</th><th scope="col">Assigned leads</th></tr></thead>
                     <tbody>
-                        @foreach($teamPerformance->sortByDesc('assigned_leads_count') as $member)
+                        @foreach($teamPerformance as $member)
                             <tr>
                                 <td><div class="analytics-member"><span class="analytics-member-avatar" aria-hidden="true">{{ mb_strtoupper(mb_substr($member->name, 0, 1)) }}</span><strong>{{ $member->name }}</strong></div></td>
                                 <td><span class="analytics-count-pill">{{ number_format($member->assigned_leads_count) }}</span></td>
