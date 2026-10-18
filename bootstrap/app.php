@@ -1,6 +1,7 @@
 <?php
 use Illuminate\Http\Request;
 use App\Http\Middleware\EnsurePermission;
+use App\Http\Middleware\EnsureUserIsActive;
 use App\Http\Middleware\EnsureUserIsAdmin;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -18,6 +19,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'admin' => EnsureUserIsAdmin::class,
             'permission' => EnsurePermission::class,
+            'active' => EnsureUserIsActive::class,
         ]);
 
         $middleware->redirectGuestsTo(function (Request $request): string {
