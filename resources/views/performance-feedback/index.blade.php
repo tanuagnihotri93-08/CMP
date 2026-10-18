@@ -2,7 +2,7 @@
 
 @section('content')
 
-<div class="crm-dashboard">
+<div class="crm-dashboard crm-feedback-page">
 
     <div class="hero-card feedback-hero">
         <div>
@@ -12,7 +12,7 @@
         </div>
 
         @if(auth()->user()?->hasPermission('performance.feedback.create'))
-            <a href="{{ route('performance-feedback.create') }}" class="fb-btn fb-btn-lg">+ Add Feedback</a>
+            <a href="{{ route('performance-feedback.create') }}" class="fb-btn fb-btn-lg"><i class="bi bi-plus-lg" aria-hidden="true"></i> Add feedback</a>
         @endif
     </div>
 
@@ -20,7 +20,8 @@
         <div class="fb-alert">{{ session('success') }}</div>
     @endif
 
-    <div class="fb-card">
+    <section class="fb-card" aria-label="Performance feedback history">
+        <div class="fb-table-wrap">
         <table class="fb-table">
             <thead>
                 <tr>
@@ -42,14 +43,14 @@
                         <td class="fb-stars">
                             @if($feedback->rating)
                                 @for($i = 1; $i <= 5; $i++)
-                                    <span class="{{ $i <= $feedback->rating ? 'on' : '' }}">★</span>
+                                    <span class="{{ $i <= $feedback->rating ? 'on' : '' }}" aria-hidden="true">&#9733;</span>
                                 @endfor
                             @else
                                 <span class="fb-none">N/A</span>
                             @endif
                         </td>
                         <td>
-                            <span class="fb-badge {{ strtolower($feedback->status) }}">{{ $feedback->status }}</span>
+                            <span @class(['fb-badge', 'open' => $feedback->status === 'Open', 'reviewed' => $feedback->status === 'Reviewed'])>{{ $feedback->status }}</span>
                         </td>
                         <td>{{ $feedback->created_at?->format('d M Y') }}</td>
                         <td>
@@ -58,19 +59,22 @@
                                     @csrf
                                     @method('PATCH')
                                     <input type="hidden" name="status" value="Reviewed">
-                                    <button type="submit" class="fb-btn">Mark Reviewed</button>
+                                    <button type="submit" class="fb-btn"><i class="bi bi-check2" aria-hidden="true"></i> Mark reviewed</button>
                                 </form>
                             @endif
                         </td>
                     </tr>
                 @empty
                     <tr>
-                        <td colspan="7" class="fb-empty">No feedback available.</td>
+                        <td colspan="7" class="fb-empty">
+                            <div class="fb-empty-state"><span class="fb-empty-icon"><i class="bi bi-chat-square-text" aria-hidden="true"></i></span><strong>No feedback yet</strong><span>Feedback shared with your team will appear here.</span></div>
+                        </td>
                     </tr>
                 @endforelse
             </tbody>
         </table>
-    </div>
+        </div>
+    </section>
 
 </div>
 

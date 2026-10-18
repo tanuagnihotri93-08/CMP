@@ -13,6 +13,7 @@ class PerformanceFeedback extends Model
         'receiver_id',
         'performance_history_id',
         'message',
+        'rating',
         'status',
     ];
 

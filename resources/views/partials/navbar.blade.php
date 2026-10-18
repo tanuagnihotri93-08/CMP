@@ -56,7 +56,7 @@
         @endphp
 
         <details class="crm-notification-menu">
-            <summary class="crm-notification-toggle" aria-label="Notifications">
+            <summary class="crm-notification-toggle" aria-label="Notifications, {{ $unreadNotificationCount }} unread" title="Notifications">
                 <i class="bi bi-bell" aria-hidden="true"></i>
                 <span>Notifications</span>
                 @if($unreadNotificationCount > 0)

@@ -2,7 +2,7 @@
 
 @section('content')
 
-<div class="crm-dashboard">
+<div class="crm-dashboard crm-performance-page">
 
     <!-- HERO SECTION -->
     <div class="hero-card performance-hero">
@@ -56,7 +56,11 @@
                 <h3>Lead Growth Analytics</h3>
                 <span>Monthly Performance</span>
             </div>
-            <div class="chart-box"><canvas id="leadChart"></canvas></div>
+            @if(collect($monthlyLeads)->sum() > 0)
+                <div class="chart-box"><canvas id="leadChart" aria-label="Monthly lead volume chart"></canvas></div>
+            @else
+                <div class="performance-empty-state"><i class="bi bi-bar-chart" aria-hidden="true"></i><strong>No lead activity yet</strong><span>Monthly lead totals will appear here as records are added.</span></div>
+            @endif
         </div>
     </div>
 
@@ -70,7 +74,7 @@
             @if(count($performanceTrend) > 0)
                 <div class="chart-box"><canvas id="trendChart"></canvas></div>
             @else
-                <p class="sub-text">No history yet. Run <code>php artisan performance:calculate</code>.</p>
+                <div class="performance-empty-state"><i class="bi bi-activity" aria-hidden="true"></i><strong>No performance history yet</strong><span>Trend data will appear after the next performance snapshot.</span></div>
             @endif
         </div>
     </div>
@@ -85,7 +89,11 @@
                 <span>Current Status</span>
             </div>
             <div class="pipeline-body">
-                <div class="chart-box small"><canvas id="statusChart"></canvas></div>
+                @if(collect($leadStatus)->sum() > 0)
+                    <div class="chart-box small"><canvas id="statusChart" aria-label="Lead pipeline status chart"></canvas></div>
+                @else
+                    <div class="performance-empty-state performance-empty-state--compact"><i class="bi bi-pie-chart" aria-hidden="true"></i><strong>No pipeline data yet</strong><span>Lead status totals will appear here.</span></div>
+                @endif
                 <div class="pipeline-stats">
                     <div><p>New</p><h2>{{ $leadStatus['New'] ?? 0 }}</h2></div>
                     <div><p>Proposal</p><h2>{{ $leadStatus['Proposal'] ?? 0 }}</h2></div>
@@ -140,8 +148,8 @@
             </div>
         </div>
         @empty
-        <div class="analytics-card">
-            <p class="sub-text">No performance data yet. Run <code>php artisan performance:calculate</code>.</p>
+        <div class="analytics-card performance-empty-card">
+            <div class="performance-empty-state"><i class="bi bi-speedometer2" aria-hidden="true"></i><strong>No performance scores yet</strong><span>Score cards will appear after the next performance snapshot.</span></div>
         </div>
         @endforelse
 
@@ -154,8 +162,8 @@
 
             @forelse($ranking as $rank)
                 @php $isTop = $loop->first && $rank->total_score > 0; @endphp
-                <div class="rank-row {{ $isTop ? 'top' : '' }}">
-                    <div class="rank-pos">{{ $loop->iteration }}</div>
+                <div @class(['rank-row', 'top' => $isTop, 'rank-second' => $loop->iteration === 2, 'rank-third' => $loop->iteration === 3])>
+                    <div class="rank-pos" aria-label="Rank {{ $loop->iteration }}">{{ str_pad((string) $loop->iteration, 2, '0', STR_PAD_LEFT) }}</div>
                     <div class="user-avatar small">
                         {{ strtoupper(substr($rank->user?->name ?? '?', 0, 1)) }}
                     </div>
@@ -165,11 +173,15 @@
                     </div>
                     @if($isTop)
                         <span class="top-badge"><i class="bi bi-trophy-fill"></i> Top Performer</span>
+                    @elseif($loop->iteration === 2)
+                        <span class="rank-medal">Runner-up</span>
+                    @elseif($loop->iteration === 3)
+                        <span class="rank-medal">3rd place</span>
                     @endif
                     <div class="rank-score">{{ $rank->total_score }}%</div>
                 </div>
             @empty
-                <p class="sub-text">No ranking data yet.</p>
+                <div class="performance-empty-state performance-empty-state--compact"><i class="bi bi-trophy" aria-hidden="true"></i><strong>No ranking data yet</strong><span>Team rankings will appear when scores are available.</span></div>
             @endforelse
         </div>
 
@@ -179,6 +191,7 @@
                 <h3 class="text-gray-300">User Performance</h3>
                 <span>CRM Operations</span>
             </div>
+            <div class="performance-table-wrap">
             <table class="performance-table">
                 <thead>
                     <tr>
@@ -190,17 +203,20 @@
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach($performance as $data)
+                    @forelse($performance as $data)
                     <tr>
                         <td>{{ $data->user?->name ?? 'Unknown' }}</td>
                         <td>{{ $data->leads_count }}</td>
                         <td>{{ $data->customers_count }}</td>
                         <td>{{ $data->activities_count }}</td>
-                        <td>{{ $data->total_score }}%</td>
+                        <td><strong class="performance-table-score">{{ $data->total_score }}%</strong></td>
                     </tr>
-                    @endforeach
+                    @empty
+                    <tr><td colspan="5"><div class="performance-empty-state performance-empty-state--table"><strong>No performance records yet</strong><span>Scores will appear here after a performance snapshot is calculated.</span></div></td></tr>
+                    @endforelse
                 </tbody>
             </table>
+            </div>
         </div>
 
     </div>

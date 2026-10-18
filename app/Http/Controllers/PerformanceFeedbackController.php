@@ -66,6 +66,7 @@ class PerformanceFeedbackController extends Controller
         $validated = $request->validate([
             'receiver_id' => ['required', 'exists:users,id'],
             'message' => ['required', 'string', 'max:2000'],
+            'rating' => ['nullable', 'integer', 'min:1', 'max:5'],
         ]);
 
         $receiverAllowed = User::where('id', $validated['receiver_id'])
@@ -79,6 +80,7 @@ class PerformanceFeedbackController extends Controller
             'sender_id' => auth()->id(),
             'receiver_id' => $validated['receiver_id'],
             'message' => $validated['message'],
+            'rating' => $validated['rating'] ?? null,
             'status' => 'Open',
         ]);
 
