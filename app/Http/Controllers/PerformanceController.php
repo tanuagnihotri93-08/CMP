@@ -50,20 +50,18 @@ class PerformanceController extends Controller
 
         $totalCustomers = Customer::whereIn('assigned_to_user_id', $visibleUserIds)->count();
 
+        $wonLeads = Lead::whereIn('assigned_to_user_id', $visibleUserIds)
+            ->where('status', 'won')
+            ->count();
+
         $totalActivities = Activity::whereIn('assigned_to_user_id', $visibleUserIds)->count();
 
         $totalPendingFollowUps = FollowUp::whereIn('assigned_to_user_id', $visibleUserIds)
             ->where('status', 'scheduled')
             ->count();
 
-        $upcomingFollowUps = FollowUp::whereIn('assigned_to_user_id', $visibleUserIds)
-            ->whereDate('date', '>=', today())
-            ->orderBy('date')
-            ->limit(5)
-            ->get();
-
         $conversionRate = $totalLeads > 0
-            ? (int) round(($totalCustomers / $totalLeads) * 100)
+            ? round(($wonLeads / $totalLeads) * 100, 2)
             : 0;
 
         /* Monthly Leads (current year) */
@@ -89,10 +87,11 @@ class PerformanceController extends Controller
             ->pluck('total', 'status');
 
         $leadStatus = [
-            'New' => $statusCounts['New'] ?? 0,
-            'Proposal' => $statusCounts['Proposal'] ?? 0,
-            'Won' => $statusCounts['Won'] ?? 0,
-            'Lost' => $statusCounts['Lost'] ?? 0,
+            'New' => $statusCounts['new'] ?? 0,
+            'Qualified' => $statusCounts['qualified'] ?? 0,
+            'Proposal' => $statusCounts['proposal'] ?? 0,
+            'Won' => $statusCounts['won'] ?? 0,
+            'Lost' => $statusCounts['lost'] ?? 0,
         ];
 
         /* History (ek hi query, trend aur meter dono ke liye) */
@@ -144,7 +143,6 @@ class PerformanceController extends Controller
             'totalCustomers',
             'totalActivities',
             'totalPendingFollowUps',
-            'upcomingFollowUps',
             'conversionRate',
             'monthlyLeads',
             'leadStatus',

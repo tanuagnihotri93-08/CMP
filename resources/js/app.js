@@ -363,41 +363,143 @@ document.querySelectorAll('[data-crm-card-filter]').forEach((filterCard) => {
 const body = document.querySelector('body');
 const userId = body?.dataset?.userId;
 
+let notificationAudioContext = null;
+
+function unlockNotificationAudio() {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) {
+        return;
+    }
+
+    notificationAudioContext ??= new AudioContext();
+    if (notificationAudioContext.state === 'suspended') {
+        notificationAudioContext.resume().catch(() => {});
+    }
+}
+
+document.addEventListener('pointerdown', unlockNotificationAudio, { once: true, capture: true });
+document.addEventListener('keydown', unlockNotificationAudio, { once: true, capture: true });
+
+function playNotificationSound() {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) {
+        return;
+    }
+
+    notificationAudioContext ??= new AudioContext();
+    const audioCtx = notificationAudioContext;
+    const play = () => {
+        const start = audioCtx.currentTime;
+        [880, 1175].forEach((frequency, index) => {
+            const oscillator = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            const at = start + index * 0.13;
+            oscillator.type = 'sine';
+            oscillator.frequency.setValueAtTime(frequency, at);
+            gain.gain.setValueAtTime(0.0001, at);
+            gain.gain.exponentialRampToValueAtTime(0.12, at + 0.015);
+            gain.gain.exponentialRampToValueAtTime(0.0001, at + 0.16);
+            oscillator.connect(gain);
+            gain.connect(audioCtx.destination);
+            oscillator.start(at);
+            oscillator.stop(at + 0.17);
+        });
+    };
+
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume().then(play).catch(() => {});
+    } else {
+        play();
+    }
+}
+
+function incrementUnreadNotificationBadge() {
+    const toggle = document.querySelector('.crm-notification-toggle');
+    if (!toggle) {
+        return;
+    }
+
+    const badge = toggle.querySelector('.crm-notification-count');
+    const current = Number(toggle.dataset.unreadCount ?? badge?.dataset.count ?? 0);
+    const count = current + 1;
+    toggle.dataset.unreadCount = String(count);
+
+    const countBadge = badge ?? document.createElement('span');
+    countBadge.classList.add('crm-notification-count');
+    countBadge.dataset.count = String(count);
+    countBadge.setAttribute('aria-label', `${count} unread`);
+    countBadge.textContent = count > 99 ? '99+' : String(count);
+    if (!badge) {
+        toggle.append(countBadge);
+    }
+    toggle.setAttribute('aria-label', `Notifications, ${count} unread`);
+
+    const unreadLabel = document.querySelector('.crm-notification-heading > div > span');
+    if (unreadLabel) {
+        unreadLabel.textContent = `${count} unread`;
+    }
+}
+
 if (userId && window.Echo) {
     window.Echo.private(`App.Models.User.${userId}`)
-        .listen('.Illuminate\\Notifications\\Events\\NotificationCreated', (e) => {
-            const notification = e.notification ?? e;
-            const isReminder = notification.type === 'reminder'
-                || (notification.data && notification.data.type === 'reminder')
-                || (notification.data && notification.data.module === 'follow_ups' && notification.data.type === 'reminder');
+        .notification((event) => {
+            const notification = event.notification ?? event;
+            const data = notification.data ?? event.data ?? notification;
+            const type = event.type ?? notification.type ?? data.type;
+            const isReminder = type === 'reminder'
+                || data.type === 'reminder'
+                || (data.module === 'follow_ups' && data.urgency !== 'emergency');
 
-            if (!isReminder) {
+            if (data.urgency === 'emergency' || type === 'emergency') {
+                incrementUnreadNotificationBadge();
+                return;
+            }
+
+            incrementUnreadNotificationBadge();
+            playNotificationSound();
+
+            if (isReminder) {
+                Swal.fire({
+                    title: data.title ?? 'Follow Up Reminder',
+                    html: data.message ?? 'You have a follow up scheduled.',
+                    icon: 'warning',
+                    confirmButtonText: data.action_url ? 'View Follow Up' : 'Dismiss',
+                    cancelButtonText: 'Dismiss',
+                    showCancelButton: true,
+                    timer: 30000,
+                    timerProgressBar: true,
+                    allowOutsideClick: false,
+                    allowEscapeKey: true,
+                    showConfirmButton: true,
+                    customClass: {
+                        container: 'followup-reminder-swal-container',
+                        popup: 'followup-reminder-swal-popup',
+                        title: 'followup-reminder-swal-title',
+                        htmlContainer: 'followup-reminder-swal-html',
+                        confirmButton: 'followup-reminder-swal-confirm',
+                        cancelButton: 'followup-reminder-swal-cancel',
+                    },
+                }).then((result) => {
+                    if (result.isConfirmed && data.action_url) {
+                        window.location.href = data.action_url;
+                    }
+                });
                 return;
             }
 
             Swal.fire({
-                title: notification.data?.title ?? 'Follow Up Reminder',
-                html: notification.data?.message ?? 'You have a follow up scheduled.',
-                icon: 'warning',
-                confirmButtonText: notification.data?.action_url ? 'View Follow Up' : 'Dismiss',
-                cancelButtonText: 'Dismiss',
-                showCancelButton: true,
-                timer: 30000,
-                timerProgressBar: true,
-                allowOutsideClick: false,
-                allowEscapeKey: true,
-                showConfirmButton: true,
-                customClass: {
-                    container: 'followup-reminder-swal-container',
-                    popup: 'followup-reminder-swal-popup',
-                    title: 'followup-reminder-swal-title',
-                    htmlContainer: 'followup-reminder-swal-html',
-                    confirmButton: 'followup-reminder-swal-confirm',
-                    cancelButton: 'followup-reminder-swal-cancel',
-                },
+                toast: true,
+                position: 'top-end',
+                icon: 'info',
+                title: data.title ?? 'New CRM notification',
+                text: data.message ?? 'You have a new notification.',
+                showConfirmButton: Boolean(data.action_url),
+                confirmButtonText: 'View',
+                timer: data.action_url ? undefined : 7000,
+                timerProgressBar: !data.action_url,
             }).then((result) => {
-                if (result.isConfirmed && notification.data?.action_url) {
-                    window.location.href = notification.data.action_url;
+                if (result.isConfirmed && data.action_url) {
+                    window.location.href = data.action_url;
                 }
             });
         });
@@ -439,10 +541,19 @@ function playEmergencySound() {
     };
 
     const cycleDuration = 0.4;
-    for (let i = 0; i < 3; i++) {
-        const t = now + i * cycleDuration;
-        beep(t, 880, 0.25);   // high beep
-        beep(t + 0.25, 440, 0.15); // low beep
+    const play = () => {
+        const start = audioCtx.currentTime;
+        for (let i = 0; i < 3; i++) {
+            const t = start + i * cycleDuration;
+            beep(t, 880, 0.25);
+            beep(t + 0.25, 440, 0.15);
+        }
+    };
+
+    if (audioCtx.state === 'suspended') {
+        audioCtx.resume().then(play).catch(() => {});
+    } else {
+        play();
     }
 
     emergencySound = { audioCtx };
@@ -552,11 +663,10 @@ const emergencyUserId = emergencyBody?.dataset?.userId;
 
 if (emergencyUserId && window.Echo) {
     window.Echo.private(`App.Models.User.${emergencyUserId}`)
-        .listen('.Illuminate\\Notifications\\Events\\NotificationCreated', (e) => {
-            const notification = e.notification ?? e;
-            const data = notification.data ?? notification;
-            const isEmergency = data?.urgency === 'emergency'
-                || (notification.urgency === 'emergency');
+        .notification((event) => {
+            const notification = event.notification ?? event;
+            const data = notification.data ?? event.data ?? notification;
+            const isEmergency = data?.urgency === 'emergency' || event.type === 'emergency';
 
             if (!isEmergency) {
                 return;

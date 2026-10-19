@@ -59,6 +59,11 @@ class CrmRecordNotification extends Notification implements ShouldQueueAfterComm
         ]);
     }
 
+    public function broadcastType(): string
+    {
+        return $this->type;
+    }
+
     private function recordUrl(): string
     {
         $routePrefix = ['follow_ups' => 'followups'][$this->module] ?? $this->module;

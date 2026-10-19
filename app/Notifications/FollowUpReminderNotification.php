@@ -62,4 +62,9 @@ class FollowUpReminderNotification extends Notification implements ShouldQueueAf
             'scheduled_at' => $this->followUp->date?->toIso8601String(),
         ]);
     }
+
+    public function broadcastType(): string
+    {
+        return $this->urgency === 'emergency' ? 'emergency' : 'reminder';
+    }
 }

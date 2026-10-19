@@ -8,8 +8,9 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 <title>CRM Pro | Login</title>
+<link rel="icon" type="image/jpeg" href="{{ asset('images/betabyte.jpg') }}">
 
-@vite(['resources/js/app.js'])
+@vite(['resources/css/app.css', 'resources/js/app.js'])
 
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 
@@ -257,19 +258,19 @@ body::after{
     justify-content:center;
 
 
-    font-size:34px;
+    overflow:hidden;
+    padding:0;
+    background:#ffffff;
+    box-shadow:0 12px 30px rgba(37,99,235,.24);
 
+}
 
-    color:white;
-
-
-    background:
-
-    linear-gradient(
-        135deg,
-        #3b82f6,
-        #9333ea
-    );
+.brand-icon img{
+    display:block;
+    width:100%;
+    height:100%;
+    border-radius:inherit;
+    object-fit:contain;
 
 
     box-shadow:
@@ -564,7 +565,7 @@ body::after{
 
 <div class="brand-icon">
 
-<i class="bi bi-shield-lock"></i>
+<img src="{{ asset('images/betabyte.jpg') }}" alt="CRM Pro logo">
 
 </div>
 

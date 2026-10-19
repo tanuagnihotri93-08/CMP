@@ -96,6 +96,7 @@
                 @endif
                 <div class="pipeline-stats">
                     <div><p>New</p><h2>{{ $leadStatus['New'] ?? 0 }}</h2></div>
+                    <div><p>Qualified</p><h2>{{ $leadStatus['Qualified'] ?? 0 }}</h2></div>
                     <div><p>Proposal</p><h2>{{ $leadStatus['Proposal'] ?? 0 }}</h2></div>
                     <div><p>Won</p><h2>{{ $leadStatus['Won'] ?? 0 }}</h2></div>
                     <div><p>Lost</p><h2>{{ $leadStatus['Lost'] ?? 0 }}</h2></div>
@@ -231,6 +232,7 @@
 
     $statusChartData = [
         (int) ($leadStatus['New'] ?? 0),
+        (int) ($leadStatus['Qualified'] ?? 0),
         (int) ($leadStatus['Proposal'] ?? 0),
         (int) ($leadStatus['Won'] ?? 0),
         (int) ($leadStatus['Lost'] ?? 0),
@@ -322,7 +324,7 @@ document.addEventListener("DOMContentLoaded", function () {
         new Chart(statusCanvas, {
             type: 'doughnut',
             data: {
-                labels: ['New', 'Proposal', 'Won', 'Lost'],
+                labels: ['New', 'Qualified', 'Proposal', 'Won', 'Lost'],
                 datasets: [{
                     data: {{ Illuminate\Support\Js::from($statusChartData) }},
                     backgroundColor: ['#3b82f6', '#a855f7', '#22c55e', '#ef4444'],

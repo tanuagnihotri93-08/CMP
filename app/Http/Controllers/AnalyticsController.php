@@ -14,12 +14,8 @@ class AnalyticsController extends Controller
     {
         $user = Auth::user();
 
-        if (!$user->role) {
-            abort(403);
-        }
-
-        // Employee restricted
-        if ($user->role->name === 'employee') {
+        if (! $user->role || ! in_array($user->role->name, ['super_admin', 'manager'], true)
+            || ! $user->hasPermission('analytics.view')) {
             abort(403, 'Analytics access denied');
         }
 

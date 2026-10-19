@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\FollowUpReminderNotification;
 use App\Console\Commands\SendFollowUpReminders;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Support\Facades\Queue;
 use Tests\TestCase;
@@ -16,6 +17,14 @@ use Tests\TestCase;
 class FollowUpReminderTest extends TestCase
 {
     use RefreshDatabase;
+
+    public function test_reminder_scan_has_a_matching_composite_index(): void
+    {
+        $this->assertTrue(Schema::hasIndex(
+            'follow_ups',
+            ['status', 'reminder_sent_at', 'date']
+        ));
+    }
 
     public function test_reminder_is_sent_to_assigned_user_five_minutes_before_follow_up(): void
     {

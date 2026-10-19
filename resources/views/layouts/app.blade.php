@@ -8,9 +8,8 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
 
-    <title>
-        CRM System
-    </title>
+    <title>CRM Pro | Business Suite</title>
+    <link rel="icon" type="image/jpeg" href="{{ asset('images/betabyte.jpg') }}">
 
     <script>
         (() => {

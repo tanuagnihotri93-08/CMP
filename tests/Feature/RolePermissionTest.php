@@ -425,6 +425,41 @@ class RolePermissionTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_follow_up_assignment_mismatch_returns_an_inline_validation_error(): void
+    {
+        $manager = $this->userWithRole('manager');
+        $leadOwner = $this->userWithRole('employee');
+        $otherEmployee = $this->userWithRole('employee');
+        $lead = Lead::create([
+            'name' => 'Follow-up assignment lead',
+            'status' => 'qualified',
+            'assigned_to_user_id' => $leadOwner->id,
+        ]);
+        $followUp = FollowUp::create([
+            'lead_id' => $lead->id,
+            'date' => now()->addDay(),
+            'type' => 'Call',
+            'status' => 'scheduled',
+            'assigned_to_user_id' => $leadOwner->id,
+        ]);
+
+        $this->actingAs($manager)
+            ->from(route('followups.edit', $followUp))
+            ->put(route('followups.update', $followUp), [
+                'lead_id' => $lead->id,
+                'date' => now()->addDays(2)->format('Y-m-d\\TH:i'),
+                'type' => 'Call',
+                'status' => 'scheduled',
+                'assigned_to_user_id' => $otherEmployee->id,
+            ])
+            ->assertRedirect(route('followups.edit', $followUp))
+            ->assertSessionHasErrors([
+                'assigned_to_user_id' => 'Assign the lead to this user before assigning the follow up.',
+            ]);
+
+        $this->assertSame($leadOwner->id, $followUp->fresh()->assigned_to_user_id);
+    }
+
     private function userWithRole(string $roleName): User
     {
         $user = User::factory()->create();

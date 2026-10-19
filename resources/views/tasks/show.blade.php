@@ -1,28 +1,30 @@
 @extends('layouts.app')
 
 @section('content')
-<div class="max-w-6xl mx-auto py-4">
+<div class="page-wrapper module-page lead-crud-page crm-page crm-task-detail-page">
 
     {{-- Header Section --}}
-    <div class="flex items-center justify-between mb-6">
+    <div class="page-header crm-header">
         <div>
-            <h1 class="text-3xl font-extrabold text-gray-900 tracking-tight">
+            <h1>
                 Task Details
             </h1>
-            <p class="text-sm text-gray-500 mt-1">
+            <p>
                 View complete task information and progress
             </p>
         </div>
 
-        <div class="flex items-center gap-3">
+        <div class="module-form-actions task-detail-actions">
             <a href="{{ route('tasks.index') }}" 
-               class="px-5 py-2.5 bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 text-sm font-semibold rounded-2xl shadow-sm transition">
-                Back
+               class="module-secondary-btn secondary-btn">
+                <i class="bi bi-arrow-left" aria-hidden="true"></i>
+                Back to tasks
             </a>
 
             @if(auth()->user()->hasPermission('tasks.update'))
                 <a href="{{ route('tasks.edit', $task) }}" 
-                   class="px-5 py-2.5 bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-semibold rounded-2xl shadow-md transition">
+                   class="primary-btn">
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
                     Edit Task
                 </a>
             @endif
@@ -30,101 +32,102 @@
     </div>
 
     {{-- Content Grid --}}
-    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 task-detail-grid">
 
         {{-- Main Details Card --}}
-        <div class="lg:col-span-2 bg-white rounded-3xl p-8 shadow-sm border border-gray-100">
-            <h3 class="text-2xl font-bold text-gray-900 mb-4">
+        <div class="lg:col-span-2 module-card crm-card task-detail-card task-detail-main">
+            <h2 class="task-detail-heading">
                 {{ $task->title }}
-            </h3>
+            </h2>
 
             <div class="mb-6">
-                <span class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                <span class="task-detail-label">
                     Description
                 </span>
-                <p class="text-gray-700 text-sm leading-relaxed">
+                <p class="task-detail-copy">
                     {{ $task->description ?? 'No description available.' }}
                 </p>
             </div>
 
-            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-4 border-t border-gray-100">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-6 task-detail-meta-grid">
                 <div>
-                    <span class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                    <span class="task-detail-label">
                         Project
                     </span>
-                    <h6 class="text-gray-900 font-semibold text-sm">
+                    <p class="task-detail-value">
                         {{ $task->project?->name ?? 'N/A' }}
-                    </h6>
+                    </p>
                 </div>
 
                 <div>
-                    <span class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                    <span class="task-detail-label">
                         Assigned To
                     </span>
-                    <h6 class="text-gray-900 font-semibold text-sm">
+                    <p class="task-detail-value">
                         {{ $task->assignedUser?->name ?? 'Unassigned' }}
-                    </h6>
+                    </p>
                 </div>
 
                 <div>
-                    <span class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                    <span class="task-detail-label">
                         Created By
                     </span>
-                    <h6 class="text-gray-900 font-semibold text-sm">
+                    <p class="task-detail-value">
                         {{ $task->creator?->name ?? 'N/A' }}
-                    </h6>
+                    </p>
                 </div>
 
                 <div>
-                    <span class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-1">
+                    <span class="task-detail-label">
                         Due Date
                     </span>
-                    <h6 class="text-gray-900 font-semibold text-sm">
+                    <p class="task-detail-value">
                         {{ $task->due_date ?? '-' }}
-                    </h6>
+                    </p>
                 </div>
             </div>
         </div>
 
         {{-- Status Panel Card --}}
-        <div class="bg-white rounded-3xl p-8 shadow-sm border border-gray-100 h-fit">
-            <h5 class="text-lg font-bold text-gray-900 mb-6">
+        <div class="module-card crm-card task-detail-card task-detail-status">
+            <h2 class="task-detail-heading">
                 Task Status
-            </h5>
+            </h2>
 
             <div class="mb-6">
-                <span class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                <span class="task-detail-label">
                     Priority
                 </span>
                 @if($task->priority == 'High')
-                    <span class="px-3 py-1 text-xs font-bold rounded-full bg-red-100 text-red-700">High</span>
+                    <span class="task-detail-badge task-priority-high">High</span>
                 @elseif($task->priority == 'Medium')
-                    <span class="px-3 py-1 text-xs font-bold rounded-full bg-amber-100 text-amber-700">Medium</span>
+                    <span class="task-detail-badge task-priority-medium">Medium</span>
                 @else
-                    <span class="px-3 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-700">Low</span>
+                    <span class="task-detail-badge task-priority-low">Low</span>
                 @endif
             </div>
 
             <div class="mb-6">
-                <span class="block text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">
+                <span class="task-detail-label">
                     Status
                 </span>
                 @if($task->status == 'Completed')
-                    <span class="px-3 py-1 text-xs font-bold rounded-full bg-emerald-100 text-emerald-700">Completed</span>
+                    <span class="task-detail-badge task-status-completed">Completed</span>
                 @elseif($task->status == 'In Progress')
-                    <span class="px-3 py-1 text-xs font-bold rounded-full bg-blue-100 text-blue-700">In Progress</span>
+                    <span class="task-detail-badge task-status-progress">In Progress</span>
                 @else
-                    <span class="px-3 py-1 text-xs font-bold rounded-full bg-gray-100 text-gray-700">Pending</span>
+                    <span class="task-detail-badge task-status-pending">Pending</span>
                 @endif
             </div>
 
             @if(auth()->user()->hasPermission('tasks.delete'))
-                <form action="{{ route('tasks.destroy', $task) }}" method="POST" class="pt-4 border-t border-gray-100">
+                <form action="{{ route('tasks.destroy', $task) }}" method="POST" class="task-detail-delete-form">
                     @csrf
                     @method('DELETE')
                     <button type="submit" 
-                            class="w-full py-3 bg-red-50 hover:bg-red-100 text-red-600 font-semibold text-sm rounded-xl transition"
+                            class="module-danger-btn task-detail-delete"
                             onclick="return confirm('Delete this task?')">
+                        <i class="bi bi-trash3" aria-hidden="true"></i>
                         Delete Task
                     </button>
                 </form>

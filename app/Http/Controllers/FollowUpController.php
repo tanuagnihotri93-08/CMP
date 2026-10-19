@@ -7,6 +7,7 @@ use App\Models\Lead;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 
 class FollowUpController extends Controller
 {
@@ -197,10 +198,10 @@ class FollowUpController extends Controller
         }
 
         $assigneeId = $validated['assigned_to_user_id'] ?? $currentAssigneeId ?? $request->user()->id;
-        abort_unless(
-            User::findOrFail($assigneeId)->canAccessRecord($lead),
-            422,
-            'Assign the lead to this user before assigning the follow up.'
-        );
+        if (! User::findOrFail($assigneeId)->canAccessRecord($lead)) {
+            throw ValidationException::withMessages([
+                'assigned_to_user_id' => 'Assign the lead to this user before assigning the follow up.',
+            ]);
+        }
     }
 }

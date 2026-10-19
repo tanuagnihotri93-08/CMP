@@ -7192,6 +7192,25 @@ a[data-export-loading].is-loading {
     outline-offset: 3px;
 }
 
+/* Keep the notification count badge pill-shaped in both color themes. */
+.crm-main-layout > .navbar .crm-notification-count {
+    display: inline-flex;
+    min-width: 20px;
+    height: 20px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 6px;
+    border: 1px solid rgba(255, 255, 255, .72);
+    border-radius: 999px;
+    background: linear-gradient(135deg, #2563eb, #7c3aed);
+    color: #fff !important;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1;
+    white-space: nowrap;
+    flex: 0 0 auto;
+}
+
 /* Notification dropdown refinements */
 .navbar .crm-notification-toggle:focus-visible {
     outline: 2px solid #93c5fd;
@@ -8361,6 +8380,219 @@ html[data-theme="light"] body .crm-dashboard .table-panel .status.lost {
     border-color: #FECACA;
 }
 
+/* Cross-module interaction and spacing polish. */
+:is(.crm-page, .module-page) :is(
+    .primary-btn,
+    .secondary-btn,
+    .module-secondary-btn,
+    .module-danger-btn,
+    .lead-action-btn,
+    .lead-back-btn,
+    .crm-action-btn,
+    .roles-admin-edit-btn,
+    .user-admin-save-btn
+) {
+    min-height: 44px;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    border-radius: 12px;
+    font-size: 14px;
+    font-weight: 650;
+    line-height: 1.2;
+    text-decoration: none;
+    transition: color .18s ease, background-color .18s ease, border-color .18s ease,
+        box-shadow .18s ease, transform .18s ease;
+}
+
+:is(.crm-page, .module-page) :is(
+    .primary-btn,
+    .secondary-btn,
+    .module-secondary-btn,
+    .module-danger-btn,
+    .lead-action-btn,
+    .lead-back-btn,
+    .roles-admin-edit-btn,
+    .user-admin-save-btn
+) {
+    display: inline-flex;
+    padding: 0 18px;
+}
+
+:is(.crm-page, .module-page) .crm-action-btn {
+    display: inline-flex;
+    min-width: 38px;
+    min-height: 38px;
+    padding: 0 10px;
+}
+
+:is(.crm-page, .module-page) :is(
+    .primary-btn,
+    .secondary-btn,
+    .module-secondary-btn,
+    .module-danger-btn,
+    .lead-action-btn,
+    .lead-back-btn,
+    .crm-action-btn,
+    .roles-admin-edit-btn,
+    .user-admin-save-btn
+) > i {
+    flex: 0 0 auto;
+    font-size: 1em;
+    line-height: 1;
+}
+
+:is(.crm-page, .module-page) :is(.primary-btn, .secondary-btn, .module-secondary-btn):active,
+:is(.crm-page, .module-page) :is(.module-danger-btn, .lead-action-btn, .lead-back-btn):active,
+:is(.crm-page, .module-page) .crm-action-btn:active {
+    transform: translateY(0) scale(.98);
+}
+
+:is(.crm-page, .module-page) :is(
+    button,
+    input[type="submit"],
+    .primary-btn,
+    .secondary-btn,
+    .module-secondary-btn,
+    .module-danger-btn,
+    .lead-action-btn,
+    .lead-back-btn,
+    .crm-action-btn
+):disabled,
+:is(.crm-page, .module-page) :is(
+    .primary-btn,
+    .secondary-btn,
+    .module-secondary-btn,
+    .module-danger-btn,
+    .lead-action-btn,
+    .lead-back-btn,
+    .crm-action-btn
+)[aria-disabled="true"] {
+    cursor: not-allowed;
+    opacity: .58;
+    box-shadow: none;
+    transform: none;
+}
+
+:is(.crm-page, .module-page) :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="submit"]),
+    select,
+    textarea
+) {
+    border-radius: 12px;
+    font: inherit;
+    line-height: 1.45;
+}
+
+:is(.crm-page, .module-page) :is(
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="hidden"]):not([type="submit"]),
+    select
+) {
+    min-height: 44px;
+    padding: 0 13px;
+}
+
+:is(.crm-page, .module-page) textarea {
+    min-height: 112px;
+    padding: 11px 13px;
+}
+
+:is(.crm-page, .module-page) :is(.module-table, table) th {
+    font-size: 11px;
+    font-weight: 750;
+    letter-spacing: .045em;
+    line-height: 1.35;
+}
+
+:is(.crm-page, .module-page) :is(.module-table, table) td {
+    vertical-align: middle;
+}
+
+:is(.crm-page, .module-page) .module-actions {
+    align-items: center;
+    gap: 8px;
+}
+
+:is(.crm-page, .module-page) :is(.crm-card, .module-card, .module-form-card, .module-profile-card) {
+    border-radius: 20px;
+}
+
+:is(.crm-page, .module-page) :is(.module-badge, .crm-badge, .status-badge) {
+    min-height: 26px;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+:is(.crm-page, .module-page) :is(.module-badge, .crm-badge, .status-badge) i {
+    font-size: 1em;
+    line-height: 1;
+}
+
+:is(.crm-page, .module-page) :is(a, button, input, select, textarea):focus-visible,
+.crm-main-layout :is(a, button):focus-visible,
+.modal :is(button, a):focus-visible {
+    outline: 3px solid rgb(59 130 246 / 38%);
+    outline-offset: 3px;
+}
+
+.crm-main-layout .crm-notification-entry > :is(i, .bi),
+.crm-main-layout .navbar-right > button > i,
+.crm-main-layout .sidebar-toggle > i,
+.sidebar-navigation > a > i,
+.sidebar-nav-parent > i:first-child {
+    flex: 0 0 20px;
+    text-align: center;
+}
+
+.modal :is(.btn-primary, .btn-secondary, .btn-danger),
+.swal2-container .swal2-styled {
+    min-height: 42px;
+    border-radius: 11px;
+    padding: 0 18px;
+    font-size: 14px;
+    font-weight: 700;
+    line-height: 1.2;
+    transition: transform .18s ease, box-shadow .18s ease, background-color .18s ease;
+}
+
+.modal :is(.btn-primary, .btn-secondary, .btn-danger):active,
+.swal2-container .swal2-styled:active {
+    transform: scale(.98);
+}
+
+@media (max-width: 620px) {
+    :is(.crm-page, .module-page) .module-form-actions > :is(
+        .primary-btn,
+        .secondary-btn,
+        .module-secondary-btn,
+        .module-danger-btn,
+        .lead-action-btn,
+        .lead-back-btn
+    ) {
+        width: 100%;
+        min-height: 46px;
+    }
+
+    :is(.crm-page, .module-page) .module-table-wrap,
+    :is(.crm-page, .module-page) .table-responsive {
+        border-radius: 14px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    :is(.crm-page, .module-page) :is(button, a, input, select, textarea),
+    .modal :is(.btn-primary, .btn-secondary, .btn-danger),
+    .swal2-container .swal2-styled {
+        scroll-behavior: auto;
+        transition-duration: .01ms !important;
+    }
+}
+
 html[data-theme="light"] body .crm-dashboard .primary-btn {
     color: #FFFFFF !important;
     background: linear-gradient(135deg, #2563EB, #7C3AED) !important;
@@ -8487,4 +8719,205 @@ html[data-theme="light"] body .crm-dashboard .table-panel :is(.status.won, .dash
 html[data-theme="light"] body .crm-dashboard .table-panel .status.lost {
     color: #B91C1C !important;
     background: #FEE2E2 !important;
+}
+
+/* Project details follow the active CRM theme instead of fixed light colors. */
+.project-show-page .project-header-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.project-show-page .form-label {
+    color: var(--crm-text-muted, #94a3b8);
+}
+
+.project-show-page .project-detail-value,
+.project-show-page .project-detail-description {
+    border: 1px solid var(--crm-border, rgba(255, 255, 255, .1));
+    border-radius: 12px;
+    background: var(--crm-surface, #0f172a);
+    color: var(--crm-text, #f8fafc);
+    font-weight: 500;
+}
+
+.project-show-page .project-detail-value {
+    display: flex;
+    min-height: 44px;
+    align-items: center;
+    padding: 0 13px;
+}
+
+.project-show-page .project-detail-description {
+    min-height: 100px;
+    padding: 12px;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+.project-show-page .project-task-header {
+    margin-bottom: 0;
+    border-bottom: 1px solid var(--crm-border, rgba(255, 255, 255, .1));
+    padding-bottom: 16px;
+}
+
+.project-show-page .project-task-empty {
+    padding: 24px;
+    color: var(--crm-text-muted, #94a3b8);
+    text-align: center;
+}
+
+@media (max-width: 620px) {
+    .project-show-page .project-header-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
+
+/* Task details use the shared CRM surface, type, action, and badge patterns. */
+.crm-task-detail-page .task-detail-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.crm-task-detail-page .task-detail-card {
+    min-width: 0;
+    padding: clamp(22px, 3vw, 32px);
+}
+
+.crm-task-detail-page .task-detail-heading {
+    margin: 0 0 20px;
+    color: var(--crm-text, #f8fafc);
+    font-size: 20px;
+    font-weight: 700;
+    line-height: 1.3;
+    overflow-wrap: anywhere;
+}
+
+.crm-task-detail-page .task-detail-label {
+    display: block;
+    margin-bottom: 6px;
+    color: var(--crm-text-muted, #94a3b8);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .06em;
+    line-height: 1.4;
+    text-transform: uppercase;
+}
+
+.crm-task-detail-page .task-detail-copy,
+.crm-task-detail-page .task-detail-value {
+    color: var(--crm-text, #f8fafc);
+    font-size: 14px;
+    line-height: 1.6;
+    overflow-wrap: anywhere;
+}
+
+.crm-task-detail-page .task-detail-copy {
+    margin: 0;
+    color: var(--crm-text-secondary, #cbd5e1);
+}
+
+.crm-task-detail-page .task-detail-meta-grid {
+    border-top: 1px solid var(--crm-border, rgba(255, 255, 255, .1));
+    padding-top: 18px;
+}
+
+.crm-task-detail-page .task-detail-value {
+    margin: 0;
+    font-weight: 600;
+}
+
+.crm-task-detail-page .task-detail-badge {
+    display: inline-flex;
+    min-height: 26px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid transparent;
+    border-radius: 999px;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+.crm-task-detail-page .task-priority-high {
+    border-color: rgba(248, 113, 113, .24);
+    background: rgba(239, 68, 68, .12);
+    color: #fca5a5;
+}
+
+.crm-task-detail-page .task-status-pending {
+    border-color: rgba(251, 191, 36, .24);
+    background: rgba(245, 158, 11, .12);
+    color: #fcd34d;
+}
+
+.crm-task-detail-page .task-priority-medium,
+.crm-task-detail-page .task-status-progress {
+    border-color: rgba(96, 165, 250, .24);
+    background: rgba(59, 130, 246, .12);
+    color: #93c5fd;
+}
+
+.crm-task-detail-page .task-priority-low,
+.crm-task-detail-page .task-status-completed {
+    border-color: rgba(74, 222, 128, .24);
+    background: rgba(34, 197, 94, .12);
+    color: #86efac;
+}
+
+.crm-task-detail-page .task-detail-delete-form {
+    margin-top: 22px;
+    border-top: 1px solid var(--crm-border, rgba(255, 255, 255, .1));
+    padding-top: 18px;
+}
+
+.crm-task-detail-page .task-detail-delete {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+    gap: 8px;
+}
+
+html[data-theme="light"] body .crm-task-detail-page .task-priority-high {
+    border-color: #fecaca;
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+html[data-theme="light"] body .crm-task-detail-page .task-status-pending {
+    border-color: #fde68a;
+    background: #fef3c7;
+    color: #92400e;
+}
+
+html[data-theme="light"] body .crm-task-detail-page .task-priority-medium,
+html[data-theme="light"] body .crm-task-detail-page .task-status-progress {
+    border-color: #bfdbfe;
+    background: #dbeafe;
+    color: #1d4ed8;
+}
+
+html[data-theme="light"] body .crm-task-detail-page .task-priority-low,
+html[data-theme="light"] body .crm-task-detail-page .task-status-completed {
+    border-color: #a7f3d0;
+    background: #d1fae5;
+    color: #047857;
+}
+
+@media (max-width: 620px) {
+    .crm-task-detail-page .task-detail-actions {
+        width: 100%;
+        justify-content: flex-start;
+    }
+
+    .crm-task-detail-page .task-detail-actions > a {
+        min-height: 44px;
+    }
 }

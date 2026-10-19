@@ -7,6 +7,7 @@ use App\Models\Customer;
 use App\Models\FollowUp;
 use App\Models\Lead;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
@@ -28,14 +29,20 @@ class DashboardController extends Controller
         $completedFollowUps = (clone $followUps)->where('status', 'completed')->count();
         $resolvedFollowUps = $completedFollowUps + $pendingFollowUps;
         $monthStart = now()->startOfMonth();
-        $monthlyLeadGrowth = collect(range(5, 0))->mapWithKeys(function (int $monthsAgo) use ($leads): array {
-            $month = now()->startOfMonth()->subMonths($monthsAgo);
+        $windowStart = $monthStart->copy()->subMonths(5);
+        $monthExpression = DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(strftime('%m', created_at) AS INTEGER)"
+            : 'MONTH(created_at)';
+        $monthlyLeadCounts = (clone $leads)
+            ->where('created_at', '>=', $windowStart)
+            ->where('created_at', '<', $monthStart->copy()->addMonth())
+            ->selectRaw($monthExpression.' as month, COUNT(*) as total')
+            ->groupBy('month')
+            ->pluck('total', 'month');
+        $monthlyLeadGrowth = collect(range(5, 0))->mapWithKeys(function (int $monthsAgo) use ($monthStart, $monthlyLeadCounts): array {
+            $month = $monthStart->copy()->subMonths($monthsAgo);
 
-            return [
-                $month->format('M Y') => (clone $leads)
-                    ->whereBetween('created_at', [$month->copy()->startOfMonth(), $month->copy()->endOfMonth()])
-                    ->count(),
-            ];
+            return [$month->format('M Y') => (int) $monthlyLeadCounts->get($month->month, 0)];
         });
         $recentBusinessActivity = (clone $activities)
             ->where('created_at', '>=', Carbon::now()->subDays(30))

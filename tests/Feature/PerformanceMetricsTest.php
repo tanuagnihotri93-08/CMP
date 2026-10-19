@@ -75,6 +75,41 @@ class PerformanceMetricsTest extends TestCase
         $this->assertSame(1, $response->viewData('totalPendingFollowUps'));
     }
 
+    public function test_performance_dashboard_counts_each_lowercase_lead_status(): void
+    {
+        $manager = User::factory()->create();
+        $permission = Permission::firstOrCreate(
+            ['name' => 'performance.view'],
+            ['description' => 'View performance dashboard']
+        );
+        $manager->role->permissions()->syncWithoutDetaching([$permission->id]);
+
+        $employee = User::factory()->create();
+        $employee->forceFill([
+            'role_id' => Role::query()->where('name', 'employee')->value('id'),
+        ])->save();
+
+        foreach (['new', 'qualified', 'proposal', 'won', 'lost'] as $status) {
+            Lead::create([
+                'name' => ucfirst($status).' lead',
+                'status' => $status,
+                'assigned_to_user_id' => $employee->id,
+            ]);
+        }
+
+        $response = $this->actingAs($manager)
+            ->get(route('performance.index'))
+            ->assertOk();
+
+        $this->assertSame([
+            'New' => 1,
+            'Qualified' => 1,
+            'Proposal' => 1,
+            'Won' => 1,
+            'Lost' => 1,
+        ], $response->viewData('leadStatus'));
+    }
+
     public function test_performance_dashboard_limits_trend_history_to_recent_ninety_days(): void
     {
         $manager = User::factory()->create();
@@ -137,12 +172,14 @@ class PerformanceMetricsTest extends TestCase
         $this->actingAs($manager);
         $dashboardRate = $this->get(route('dashboard'))->assertOk()->viewData('conversionRate');
         $analyticsRate = $this->get(route('analytics.index'))->assertOk()->viewData('conversionRate');
+        $performanceDashboardRate = $this->get(route('performance.index'))->assertOk()->viewData('conversionRate');
 
         $this->artisan('performance:calculate')->assertExitCode(0);
         $performanceRate = Performance::where('user_id', $employee->id)->sole()->conversion_score;
 
         $this->assertSame(33.33, $dashboardRate);
         $this->assertSame(33.33, $analyticsRate);
+        $this->assertSame(33.33, $performanceDashboardRate);
         $this->assertSame(33, $performanceRate);
     }
 

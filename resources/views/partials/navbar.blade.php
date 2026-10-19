@@ -56,11 +56,11 @@
         @endphp
 
         <details class="crm-notification-menu">
-            <summary class="crm-notification-toggle" aria-label="Notifications, {{ $unreadNotificationCount }} unread" title="Notifications">
+            <summary class="crm-notification-toggle" data-unread-count="{{ $unreadNotificationCount }}" aria-label="Notifications, {{ $unreadNotificationCount }} unread" title="Notifications">
                 <i class="bi bi-bell" aria-hidden="true"></i>
                 <span>Notifications</span>
                 @if($unreadNotificationCount > 0)
-                    <span class="crm-notification-count" aria-label="{{ $unreadNotificationCount }} unread">
+                    <span class="crm-notification-count" data-count="{{ $unreadNotificationCount }}" aria-label="{{ $unreadNotificationCount }} unread">
                         {{ $unreadNotificationCount > 99 ? '99+' : $unreadNotificationCount }}
                     </span>
                 @endif

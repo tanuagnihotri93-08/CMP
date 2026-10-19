@@ -17,8 +17,9 @@
         </div>
 
         <a href="{{ route('leads.index') }}" class="lead-back-btn">
-    ← Back To Leads
-</a>
+            <i class="bi bi-arrow-left" aria-hidden="true"></i>
+            Back to leads
+        </a>
 
     </div>
 
@@ -164,6 +165,7 @@
             @if($lead->customer && auth()->user()->hasPermission('customers.view'))
 
             <a class="primary-btn" href="{{ route('customers.show', $lead->customer) }}">
+                <i class="bi bi-person-vcard" aria-hidden="true"></i>
                 View Customer
             </a>
 
@@ -171,6 +173,7 @@
             @elseif($lead->status === 'won' && auth()->user()->hasPermission('customers.create'))
 
             <a class="primary-btn" href="{{ route('customers.create', ['lead_id' => $lead->id]) }}">
+                <i class="bi bi-person-check" aria-hidden="true"></i>
                 Convert to Customer
             </a>
 
@@ -180,6 +183,7 @@
 
             @if(auth()->user()->hasPermission('follow_ups.create'))
                 <a class="lead-action-btn" href="{{ route('followups.create', ['lead_id' => $lead->id]) }}">
+                    <i class="bi bi-calendar-plus" aria-hidden="true"></i>
                     Schedule Follow Up
                 </a>
             @endif
@@ -187,12 +191,14 @@
 
             @if(auth()->user()->hasPermission('leads.update'))
                 <a class="lead-action-btn" href="{{ route('leads.edit',$lead->id) }}">
+                    <i class="bi bi-pencil-square" aria-hidden="true"></i>
                     Edit Lead
                 </a>
             @endif
 
             @if(auth()->user()->hasPermission('activities.create'))
                 <a class="lead-action-btn" href="{{ route('activities.create', ['lead_id' => $lead->id]) }}">
+                    <i class="bi bi-plus-circle" aria-hidden="true"></i>
                     Add Activity
                 </a>
             @endif
@@ -513,6 +519,8 @@
 
     align-items: center;
 
+    flex-wrap: wrap;
+
     gap: 15px;
 
     margin-top: 30px;
@@ -524,10 +532,7 @@
 }
 
 
-/* BUTTON ALIGNMENT */
-
 /* LEAD DETAILS ACTION BUTTONS */
-
 .lead-action-btn{
 
     display:inline-flex;
@@ -536,34 +541,9 @@
 
     justify-content:center;
 
-    padding:13px 26px;
+    min-height:48px;
 
-    border-radius:14px;
-
-    background:dark: #0c0c0c;
-
-    border:1px solid #1c4579;
-
-    color:#334155;
-
-    text-decoration:none;
-
-    font-weight:700;
-
-    transition:.3s;
-
-}
-
-
-.lead-action-btn{
-
-    display:inline-flex;
-
-    align-items:center;
-
-    justify-content:center;
-
-    padding:13px 26px;
+    padding:0 22px;
 
     border-radius:14px;
 
@@ -577,11 +557,44 @@
 
     font-weight:700;
 
+    line-height:1.2;
+
+    white-space:nowrap;
+
     transition:.3s;
 
     box-shadow:
     0 10px 25px rgba(10, 10, 10, 0.55);
 
+}
+
+.lead-details-card .module-form-actions > .primary-btn {
+    display:inline-flex;
+    min-height:48px;
+    align-items:center;
+    justify-content:center;
+    padding:0 22px;
+    border:1px solid transparent;
+    border-radius:14px;
+    background:linear-gradient(135deg, #2563eb, #7c3aed) !important;
+    box-shadow:0 10px 24px rgba(37, 99, 235, .24);
+    color:#ffffff !important;
+    font-size:15px;
+    font-weight:700;
+    line-height:1.2;
+    text-decoration:none;
+    white-space:nowrap;
+    transition:transform .2s ease, box-shadow .2s ease, filter .2s ease;
+}
+
+.lead-details-card .module-form-actions > .primary-btn:hover {
+    filter:brightness(1.08);
+    transform:translateY(-2px);
+    box-shadow:0 14px 28px rgba(37, 99, 235, .3);
+}
+
+.lead-details-card .module-form-actions > .lead-action-btn {
+    color:#ffffff !important;
 }
 
 
@@ -591,7 +604,7 @@
 
     border-color:#2563eb;
 
-    color:#ffffff;
+    color:#ffffff !important;
 
     transform:translateY(-2px);
 

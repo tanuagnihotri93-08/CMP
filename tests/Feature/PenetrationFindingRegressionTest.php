@@ -178,6 +178,21 @@ class PenetrationFindingRegressionTest extends TestCase
         $this->assertGuest();
     }
 
+    public function test_analytics_access_requires_the_assigned_permission_for_managers(): void
+    {
+        $manager = $this->userWithRole('manager');
+        $this->actingAs($manager)
+            ->get(route('analytics.index'))
+            ->assertOk();
+
+        $permission = Permission::where('name', 'analytics.view')->firstOrFail();
+        $manager->role->permissions()->detach($permission->id);
+
+        $this->actingAs($manager->fresh())
+            ->get(route('analytics.index'))
+            ->assertForbidden();
+    }
+
     public function test_task_cannot_be_assigned_to_an_inactive_user(): void
     {
         $employee = $this->userWithRole('employee');
