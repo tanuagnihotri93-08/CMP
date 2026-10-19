@@ -8,7 +8,12 @@ $ErrorActionPreference = 'Stop'
 $scriptDir = [IO.Path]::GetFullPath((Split-Path -Parent $MyInvocation.MyCommand.Definition))
 Set-Location -LiteralPath $scriptDir
 $pidFile = Join-Path $scriptDir '.crm-launcher-pids.txt'
-$lockPath = Join-Path $scriptDir '.crm-launcher.lock'
+$projectHash = [Security.Cryptography.SHA256]::Create()
+try {
+    $projectKey = [BitConverter]::ToString($projectHash.ComputeHash([Text.Encoding]::UTF8.GetBytes($scriptDir))).Replace('-', '').Substring(0, 16).ToLowerInvariant()
+} finally { $projectHash.Dispose() }
+# Keep the exclusive launcher lock outside the Vite-watched project tree.
+$lockPath = Join-Path ([IO.Path]::GetTempPath()) "crm-launcher-$projectKey.lock"
 
 function Write-Status([string]$Message, [ConsoleColor]$Color = [ConsoleColor]::Gray) {
     Write-Host $Message -ForegroundColor $Color
@@ -82,6 +87,30 @@ function Add-TrackedProcess([string]$Name, [int]$Id, [System.Collections.Generic
     Write-Status "  RUNNING: $Name (PID $Id)" Green
 }
 
+function Track-ListeningService([string]$Name, [int]$Port, [string]$ExpectedExecutable, [System.Collections.Generic.List[object]]$Entries) {
+    $tracked = $Entries | Where-Object { $_.Name -eq $Name -and (Test-TrackedProcess $_) } | Select-Object -First 1
+    if ($tracked) {
+        Write-Status "  ALREADY TRACKED: $Name (PID $($tracked.Pid))" Yellow
+        return $true
+    }
+
+    try {
+        $listener = Get-NetTCPConnection -State Listen -LocalPort $Port -ErrorAction Stop | Select-Object -First 1
+        if (-not $listener) { return $false }
+        $process = Get-Process -Id $listener.OwningProcess -ErrorAction Stop
+        if (-not $process.Path -or -not [string]::Equals([IO.Path]::GetFullPath($process.Path), [IO.Path]::GetFullPath($ExpectedExecutable), [StringComparison]::OrdinalIgnoreCase)) {
+            Write-Status "  PORT CONFLICT: port $Port is owned by a different executable; leaving it untracked." Yellow
+            return $false
+        }
+        Add-TrackedProcess $Name $process.Id $Entries
+        Write-Status "  TRACKED EXISTING LISTENER: $Name on port $Port" Yellow
+        return $true
+    } catch {
+        Write-Status "  WARNING: Could not safely identify the listener on port $Port; it will not be tracked." Yellow
+        return $false
+    }
+}
+
 function Start-CrmService([string]$Name, [string]$FilePath, [string[]]$Arguments, [string]$Description, [string]$Signature, [System.Collections.Generic.List[object]]$Entries) {
     $existing = $Entries | Where-Object { $_.Name -eq $Name -and (Test-TrackedProcess $_) } | Select-Object -First 1
     if ($existing) {
@@ -111,7 +140,26 @@ function Start-CrmService([string]$Name, [string]$FilePath, [string[]]$Arguments
     $safeName = $Name -replace '[^a-zA-Z0-9_-]', '_'
     $stdout = Join-Path $scriptDir "storage\logs\crm-$safeName.out.log"
     $stderr = Join-Path $scriptDir "storage\logs\crm-$safeName.err.log"
-    $process = Start-Process -FilePath $FilePath -ArgumentList $Arguments -WorkingDirectory $scriptDir -WindowStyle Hidden -PassThru -RedirectStandardOutput $stdout -RedirectStandardError $stderr
+    # Start the long-running command through WMI rather than as a child of this
+    # launcher. On Windows, terminals/IDE launchers can close their process job
+    # when this script exits. Win32_Process.Create detaches the service wrapper
+    # from that launcher lifetime. A small per-service cmd file avoids cmd.exe
+    # nested-quote and executable paths-with-spaces problems. Keep cmd.exe as the
+    # tracked parent so stop-crm.bat's taskkill /T still stops the service tree.
+    $wrapper = Join-Path $scriptDir "storage\logs\crm-$safeName-launch.cmd"
+    $commandArguments = ($Arguments | ForEach-Object { '"' + ([string]$_).Replace('"', '""') + '"' }) -join ' '
+    @(
+        '@echo off'
+        ('cd /d "{0}"' -f $scriptDir)
+        ('"{0}" {1} 1> "{2}" 2> "{3}"' -f $FilePath, $commandArguments, $stdout, $stderr)
+    ) | Set-Content -LiteralPath $wrapper -Encoding ascii
+    $commandLine = '"{0}" /d /c call "{1}" "{2}"' -f `
+        (Join-Path $env:SystemRoot 'System32\cmd.exe'), $wrapper, $Signature
+    $created = Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = $commandLine } -ErrorAction Stop
+    if ($created.ReturnValue -ne 0 -or -not $created.ProcessId) {
+        throw "$Description could not be detached from the launcher (WMI return code $($created.ReturnValue))."
+    }
+    $process = Get-Process -Id ([int]$created.ProcessId) -ErrorAction Stop
     Start-Sleep -Milliseconds 500
     try { $null = Get-Process -Id $process.Id -ErrorAction Stop }
     catch { throw "$Description exited during startup. Check $stderr" }
@@ -138,6 +186,8 @@ try {
     if (-not $php) { throw 'PHP not found in PATH. Add PHP or XAMPP PHP to PATH.' }
     if (-not $node) { throw 'Node.js not found in PATH.' }
     if (-not $npm) { throw 'npm.cmd not found in PATH.' }
+    $npmCli = Join-Path (Split-Path -Parent $npm.Source) 'node_modules\npm\bin\npm-cli.js'
+    if (-not (Test-Path -LiteralPath $npmCli)) { throw "npm CLI was not found at $npmCli." }
     if (-not (Test-Path (Join-Path $scriptDir 'vendor\autoload.php'))) { throw "Composer dependencies not installed. Run 'composer install' first." }
     if (-not (Test-Path (Join-Path $scriptDir 'node_modules'))) { Write-Status "WARNING: node_modules is missing; Vite may fail. Run 'npm install'." Yellow }
     Write-Status "PHP: $($php.Source) | Node: $(node -v)" Gray
@@ -160,7 +210,10 @@ try {
     }
 
     Write-Status '[1/5] Laravel application' Cyan
-    if (Test-ListeningPort 8000) { Write-Status '  ALREADY LISTENING: http://127.0.0.1:8000' Yellow }
+    if (Test-ListeningPort 8000) {
+        Write-Status '  ALREADY LISTENING: http://127.0.0.1:8000' Yellow
+        $null = Track-ListeningService 'laravel' 8000 $php.Source $entries
+    }
     else { Start-CrmService 'laravel' $php.Source @($artisan, 'serve', '--host=127.0.0.1', '--port=8000') 'Laravel development server' 'serve --host=127.0.0.1' $entries }
 
     Write-Status '[2/5] Queue worker' Cyan
@@ -170,12 +223,18 @@ try {
     Start-CrmService 'scheduler' $php.Source @($artisan, 'schedule:work') 'Laravel scheduler' 'schedule:work' $entries
 
     Write-Status '[4/5] Reverb WebSocket server' Cyan
-    if (Test-ListeningPort $reverbPort) { Write-Status "  ALREADY LISTENING: Reverb on port $reverbPort" Yellow }
+    if (Test-ListeningPort $reverbPort) {
+        Write-Status "  ALREADY LISTENING: Reverb on port $reverbPort" Yellow
+        $null = Track-ListeningService 'reverb' $reverbPort $php.Source $entries
+    }
     else { Start-CrmService 'reverb' $php.Source @($artisan, 'reverb:start') 'Laravel Reverb server' 'reverb:start' $entries }
 
     Write-Status '[5/5] Vite assets' Cyan
-    if (Test-ListeningPort $vitePort) { Write-Status "  ALREADY LISTENING: Vite on port $vitePort" Yellow }
-    else { Start-CrmService 'vite' $env:ComSpec @('/d', '/s', '/c', '""' + $npm.Source + '" run dev"') 'Vite development server' 'npm run dev' $entries }
+    if (Test-ListeningPort $vitePort) {
+        Write-Status "  ALREADY LISTENING: Vite on port $vitePort" Yellow
+        $null = Track-ListeningService 'vite' $vitePort $node.Source $entries
+    }
+    else { Start-CrmService 'vite' $node.Source @($npmCli, 'run', 'dev') 'Vite development server' 'npm-cli.js run dev' $entries }
 
     if (-not $WhatIf) {
         $entries | ForEach-Object { '{0}|{1}|{2}' -f $_.Name, $_.Pid, $_.StartTicks } | Set-Content -LiteralPath $pidFile -Encoding ascii

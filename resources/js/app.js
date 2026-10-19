@@ -440,6 +440,18 @@ function incrementUnreadNotificationBadge() {
     }
 }
 
+function escapeNotificationHtml(value) {
+    const entities = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;',
+    };
+
+    return String(value).replace(/[&<>"']/g, (character) => entities[character]);
+}
+
 if (userId && window.Echo) {
     window.Echo.private(`App.Models.User.${userId}`)
         .notification((event) => {
@@ -461,7 +473,7 @@ if (userId && window.Echo) {
             if (isReminder) {
                 Swal.fire({
                     title: data.title ?? 'Follow Up Reminder',
-                    html: data.message ?? 'You have a follow up scheduled.',
+                    html: escapeNotificationHtml(data.message ?? 'You have a follow up scheduled.'),
                     icon: 'warning',
                     confirmButtonText: data.action_url ? 'View Follow Up' : 'Dismiss',
                     cancelButtonText: 'Dismiss',
@@ -511,69 +523,77 @@ if (userId && window.Echo) {
    Appears on every CRM page via broadcast
 ========================================= */
 
+const EMERGENCY_ALERT_MAX_DURATION = 2 * 60 * 1000;
 let emergencySound = null;
+let emergencyAlertTimeout = null;
 
-function playEmergencySound() {
-    if (emergencySound) {
+function removeEmergencyAudioGestureListeners() {
+    document.removeEventListener('pointerdown', retryEmergencySound, true);
+    document.removeEventListener('keydown', retryEmergencySound, true);
+}
+
+function retryEmergencySound() {
+    const activeSound = emergencySound;
+    if (!activeSound || !activeSound.blocked) {
         return;
     }
 
-    const AudioContext = window.AudioContext || window.webkitAudioContext;
-    if (!AudioContext) {
-        return;
-    }
-
-    const audioCtx = new AudioContext();
-    const now = audioCtx.currentTime;
-
-    // Emergency hooter: alternating high/low beep pattern, 3 cycles, no infinite loop
-    const beep = (startTime, freq, duration) => {
-        const osc = audioCtx.createOscillator();
-        const gain = audioCtx.createGain();
-        osc.type = 'square';
-        osc.frequency.setValueAtTime(freq, startTime);
-        gain.setValueAtTime(0.08, startTime);
-        gain.linearRampToValueAtTime(0, startTime + duration);
-        osc.connect(gain);
-        gain.connect(audioCtx.destination);
-        osc.start(startTime);
-        osc.stop(startTime + duration);
-    };
-
-    const cycleDuration = 0.4;
-    const play = () => {
-        const start = audioCtx.currentTime;
-        for (let i = 0; i < 3; i++) {
-            const t = start + i * cycleDuration;
-            beep(t, 880, 0.25);
-            beep(t + 0.25, 440, 0.15);
-        }
-    };
-
-    if (audioCtx.state === 'suspended') {
-        audioCtx.resume().then(play).catch(() => {});
+    // Calling play() directly from this user gesture can satisfy autoplay policies.
+    activeSound.blocked = false;
+    const playRequest = activeSound.audio.play();
+    if (playRequest && typeof playRequest.then === 'function') {
+        playRequest.then(removeEmergencyAudioGestureListeners).catch((error) => {
+            activeSound.blocked = error?.name === 'NotAllowedError';
+            if (!activeSound.blocked) {
+                removeEmergencyAudioGestureListeners();
+                console.warn('Emergency alert sound could not be played.', error);
+            }
+        });
     } else {
-        play();
+        removeEmergencyAudioGestureListeners();
+    }
+}
+
+function playEmergencySound(source) {
+    if (emergencySound || !source) {
+        return;
     }
 
-    emergencySound = { audioCtx };
+    const audio = new Audio(source);
+    audio.preload = 'auto';
+    audio.loop = true;
+    audio.volume = 1;
+    emergencySound = { audio, blocked: false, timeoutId: null };
 
-    // Auto-stop after 30 seconds (safety)
-    setTimeout(() => {
-        try {
-            audioCtx.close();
-        } catch (e) { /* ignore */ }
-        emergencySound = null;
-    }, 30000);
+    // The timer starts with the alert, even if the browser initially blocks playback.
+    emergencySound.timeoutId = window.setTimeout(stopEmergencySound, EMERGENCY_ALERT_MAX_DURATION);
+
+    const playRequest = audio.play();
+    if (playRequest && typeof playRequest.then === 'function') {
+        playRequest.catch((error) => {
+            if (error?.name === 'NotAllowedError') {
+                emergencySound.blocked = true;
+                document.addEventListener('pointerdown', retryEmergencySound, true);
+                document.addEventListener('keydown', retryEmergencySound, true);
+                return;
+            }
+
+            console.warn('Emergency alert sound could not be played.', error);
+        });
+    }
 }
 
 function stopEmergencySound() {
-    if (emergencySound) {
-        try {
-            emergencySound.audioCtx.close();
-        } catch (e) { /* ignore */ }
-        emergencySound = null;
+    if (!emergencySound) {
+        return;
     }
+
+    const activeSound = emergencySound;
+    emergencySound = null;
+    window.clearTimeout(activeSound.timeoutId);
+    removeEmergencyAudioGestureListeners();
+    activeSound.audio.pause();
+    activeSound.audio.currentTime = 0;
 }
 
 function getConfirmedEmergencyIds() {
@@ -603,19 +623,19 @@ function showEmergencyAlert(data) {
         return;
     }
 
-    playEmergencySound();
-
     const container = document.getElementById('emergency-alert-container');
     if (!container) {
         return;
     }
 
-    const leadName = data?.lead_id ? `Lead #${data.lead_id}` : 'Unknown Lead';
-    const title = data?.title ?? 'Emergency Follow Up Alert';
-    const message = data?.message ?? 'You have an urgent follow up scheduled.';
-    const type = data?.type ?? 'Follow Up';
-    const scheduledAt = data?.scheduled_at ? new Date(data.scheduled_at).toLocaleString() : 'Not set';
-    const remark = data?.remark ?? null;
+    playEmergencySound(container.dataset.emergencyAudioSrc);
+
+    const leadName = escapeNotificationHtml(data?.lead_id ? `Lead #${data.lead_id}` : 'Unknown Lead');
+    const title = escapeNotificationHtml(data?.title ?? 'Emergency Follow Up Alert');
+    const message = escapeNotificationHtml(data?.message ?? 'You have an urgent follow up scheduled.');
+    const type = escapeNotificationHtml(data?.type ?? 'Follow Up');
+    const scheduledAt = escapeNotificationHtml(data?.scheduled_at ? new Date(data.scheduled_at).toLocaleString() : 'Not set');
+    const remark = data?.remark ? escapeNotificationHtml(data.remark) : null;
     const actionUrl = data?.action_url ?? null;
 
     const html = `
@@ -628,7 +648,7 @@ function showEmergencyAlert(data) {
             <div class="emergency-alert-detail"><i class="bi bi-clock-fill"></i> ${scheduledAt}</div>
             ${remark ? `<div class="emergency-alert-detail"><i class="bi bi-chat-right-text-fill"></i> ${remark}</div>` : ''}
             <div class="emergency-alert-actions">
-                <button class="emergency-alert-btn-confirm" id="emergency-alert-confirm-btn">CONFIRM</button>
+                <button type="button" class="emergency-alert-btn-confirm" id="emergency-alert-confirm-btn">ACKNOWLEDGE</button>
             </div>
         </div>
     `;
@@ -639,6 +659,7 @@ function showEmergencyAlert(data) {
 
     const confirmBtn = document.getElementById('emergency-alert-confirm-btn');
     const hideAlert = () => {
+        window.clearTimeout(emergencyAlertTimeout);
         stopEmergencySound();
         container.classList.add('hidden');
         container.style.display = 'none'; // Fix: Completely resets display to avoid phantom blur layer
@@ -649,13 +670,15 @@ function showEmergencyAlert(data) {
     };
 
     confirmBtn.addEventListener('click', hideAlert);
+    confirmBtn.focus();
 
-    // Auto-dismiss after 45 seconds (sound auto-stops at 30s)
-    setTimeout(() => {
+    // Keep the prominent alert visible for the same bounded period as its sound.
+    window.clearTimeout(emergencyAlertTimeout);
+    emergencyAlertTimeout = window.setTimeout(() => {
         if (!container.classList.contains('hidden')) {
             hideAlert();
         }
-    }, 45000);
+    }, EMERGENCY_ALERT_MAX_DURATION);
 }
 
 const emergencyBody = document.querySelector('body');
