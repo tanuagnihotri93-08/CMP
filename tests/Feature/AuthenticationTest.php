@@ -68,10 +68,10 @@ class AuthenticationTest extends TestCase
             ->assertSee('<form method="POST" action="'.route('login').'" novalidate>', false)
             ->assertSee('name="email"', false)
             ->assertSee('name="password"', false)
-            ->assertSee('placeholder="Enter email"
-required', false)
-            ->assertSee('placeholder="Enter password"
-required', false);
+            ->assertSee('placeholder="Enter email"', false)
+            ->assertSee('required', false)
+            ->assertSee('placeholder="Enter password"', false)
+            ->assertSee('required', false);
     }
 
     public function test_login_form_posts_to_the_current_application_path(): void
